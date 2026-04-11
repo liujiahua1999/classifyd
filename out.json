@@ -1,0 +1,808 @@
+[
+  {
+    "video_path": "/Users/jiahualiu/Downloads/app/classification/Video/0001-1970_D/0001-1970_D.mp4",
+    "duration_sec": 32.9,
+    "container_format": "mov",
+    "video_codec": "av1",
+    "width": 1920,
+    "height": 1080,
+    "frames_sampled": 12,
+    "tagger": "wd14:SwinV2_v3",
+    "wd14": {
+      "model": "SwinV2_v3",
+      "frames_tagged": 12,
+      "summary": {
+        "output_min_score": 0.9,
+        "inference_thresholds": {
+          "general": 0.15,
+          "character": 0.45
+        },
+        "counts": {
+          "general_tags_above_cutoff": 10,
+          "general_tags_total_before_cutoff": 70,
+          "character_tags_above_cutoff": 2,
+          "character_tags_wd14_above_cutoff": 2,
+          "character_tags_total_before_cutoff": 2
+        },
+        "dominant_rating_guess": "explicit",
+        "rating_above_cutoff": {
+          "explicit": 0.9889994859695435
+        },
+        "general_tag_string": "1girl, hetero, 1boy, breasts, nipples, sex, blonde_hair, nude, spiked_hair, brown_hair",
+        "character_tag_string": "cloud_strife, aerith_gainsborough",
+        "character_filename_fallback": null,
+        "combined_high_confidence": [
+          "general:1girl",
+          "general:hetero",
+          "general:1boy",
+          "general:breasts",
+          "general:nipples",
+          "general:sex",
+          "general:blonde_hair",
+          "general:nude",
+          "general:spiked_hair",
+          "general:brown_hair",
+          "character:cloud_strife",
+          "character:aerith_gainsborough"
+        ]
+      },
+      "rating": {
+        "explicit": 0.9889994859695435
+      },
+      "general_tags": [
+        {
+          "name": "1girl",
+          "score": 0.9944719076156616,
+          "frames": 12
+        },
+        {
+          "name": "hetero",
+          "score": 0.9915339946746826,
+          "frames": 12
+        },
+        {
+          "name": "1boy",
+          "score": 0.9893940091133118,
+          "frames": 12
+        },
+        {
+          "name": "breasts",
+          "score": 0.9779953956604004,
+          "frames": 12
+        },
+        {
+          "name": "nipples",
+          "score": 0.9674713015556335,
+          "frames": 12
+        },
+        {
+          "name": "sex",
+          "score": 0.9452965259552002,
+          "frames": 12
+        },
+        {
+          "name": "blonde_hair",
+          "score": 0.9341597557067871,
+          "frames": 12
+        },
+        {
+          "name": "nude",
+          "score": 0.9294933676719666,
+          "frames": 12
+        },
+        {
+          "name": "spiked_hair",
+          "score": 0.9181509017944336,
+          "frames": 12
+        },
+        {
+          "name": "brown_hair",
+          "score": 0.9017349481582642,
+          "frames": 12
+        }
+      ],
+      "character_tags": [
+        {
+          "name": "cloud_strife",
+          "score": 0.994290292263031,
+          "frames": 12
+        },
+        {
+          "name": "aerith_gainsborough",
+          "score": 0.9794601202011108,
+          "frames": 12
+        }
+      ]
+    },
+    "processed_at": "2026-04-11T11:01:36.810020+00:00"
+  },
+  {
+    "video_path": "/Users/jiahualiu/Downloads/app/classification/Video/0125_60FPS/0125_60FPS.mp4",
+    "duration_sec": 17.566667,
+    "container_format": "mov",
+    "video_codec": "av1",
+    "width": 1920,
+    "height": 1080,
+    "frames_sampled": 12,
+    "tagger": "wd14:SwinV2_v3",
+    "wd14": {
+      "model": "SwinV2_v3",
+      "frames_tagged": 12,
+      "summary": {
+        "output_min_score": 0.9,
+        "inference_thresholds": {
+          "general": 0.15,
+          "character": 0.45
+        },
+        "counts": {
+          "general_tags_above_cutoff": 11,
+          "general_tags_total_before_cutoff": 55,
+          "character_tags_above_cutoff": 1,
+          "character_tags_wd14_above_cutoff": 1,
+          "character_tags_total_before_cutoff": 1
+        },
+        "dominant_rating_guess": "explicit",
+        "rating_above_cutoff": {
+          "explicit": 0.9915841817855835
+        },
+        "general_tag_string": "1girl, hetero, penis, 1boy, breasts, nipples, sex, nude, vaginal, brown_hair, large_breasts",
+        "character_tag_string": "shiranui_mai",
+        "character_filename_fallback": null,
+        "combined_high_confidence": [
+          "general:1girl",
+          "general:hetero",
+          "general:penis",
+          "general:1boy",
+          "general:breasts",
+          "general:nipples",
+          "general:sex",
+          "general:nude",
+          "general:vaginal",
+          "general:brown_hair",
+          "general:large_breasts",
+          "character:shiranui_mai"
+        ]
+      },
+      "rating": {
+        "explicit": 0.9915841817855835
+      },
+      "general_tags": [
+        {
+          "name": "1girl",
+          "score": 0.9980316162109375,
+          "frames": 12
+        },
+        {
+          "name": "hetero",
+          "score": 0.9954294562339783,
+          "frames": 12
+        },
+        {
+          "name": "penis",
+          "score": 0.9925846457481384,
+          "frames": 12
+        },
+        {
+          "name": "1boy",
+          "score": 0.9918544292449951,
+          "frames": 12
+        },
+        {
+          "name": "breasts",
+          "score": 0.9911245107650757,
+          "frames": 12
+        },
+        {
+          "name": "nipples",
+          "score": 0.9841364622116089,
+          "frames": 12
+        },
+        {
+          "name": "sex",
+          "score": 0.9733286499977112,
+          "frames": 12
+        },
+        {
+          "name": "nude",
+          "score": 0.9667575359344482,
+          "frames": 12
+        },
+        {
+          "name": "vaginal",
+          "score": 0.949379563331604,
+          "frames": 12
+        },
+        {
+          "name": "brown_hair",
+          "score": 0.934887707233429,
+          "frames": 12
+        },
+        {
+          "name": "large_breasts",
+          "score": 0.9342485666275024,
+          "frames": 12
+        }
+      ],
+      "character_tags": [
+        {
+          "name": "shiranui_mai",
+          "score": 0.9877450466156006,
+          "frames": 12
+        }
+      ]
+    },
+    "processed_at": "2026-04-11T11:01:45.421764+00:00"
+  },
+  {
+    "video_path": "/Users/jiahualiu/Downloads/app/classification/Video/20210308-05_________________2/20210308-05_________________2.mp4",
+    "duration_sec": 43.978345,
+    "container_format": "mov",
+    "video_codec": "av1",
+    "width": 1920,
+    "height": 1080,
+    "frames_sampled": 12,
+    "tagger": "wd14:SwinV2_v3",
+    "wd14": {
+      "model": "SwinV2_v3",
+      "frames_tagged": 12,
+      "summary": {
+        "output_min_score": 0.9,
+        "inference_thresholds": {
+          "general": 0.15,
+          "character": 0.45
+        },
+        "counts": {
+          "general_tags_above_cutoff": 18,
+          "general_tags_total_before_cutoff": 161,
+          "character_tags_above_cutoff": 2,
+          "character_tags_wd14_above_cutoff": 2,
+          "character_tags_total_before_cutoff": 2
+        },
+        "dominant_rating_guess": "explicit",
+        "rating_above_cutoff": {
+          "explicit": 0.9951250553131104
+        },
+        "general_tag_string": "1girl, hetero, 1boy, hat, shirt, peaked_cap, sex, penis, censored, necktie, white_shirt, breasts, white_hair, sleeveless_shirt, black_necktie, mosaic_censoring, purple_eyes, traffic_cone",
+        "character_tag_string": "enterprise_(azur_lane), commander_(azur_lane)",
+        "character_filename_fallback": null,
+        "combined_high_confidence": [
+          "general:1girl",
+          "general:hetero",
+          "general:1boy",
+          "general:hat",
+          "general:shirt",
+          "general:peaked_cap",
+          "general:sex",
+          "general:penis",
+          "general:censored",
+          "general:necktie",
+          "general:white_shirt",
+          "general:breasts",
+          "general:white_hair",
+          "general:sleeveless_shirt",
+          "general:black_necktie",
+          "general:mosaic_censoring",
+          "general:purple_eyes",
+          "general:traffic_cone",
+          "character:enterprise_(azur_lane)",
+          "character:commander_(azur_lane)"
+        ]
+      },
+      "rating": {
+        "explicit": 0.9951250553131104
+      },
+      "general_tags": [
+        {
+          "name": "1girl",
+          "score": 0.9967391490936279,
+          "frames": 12
+        },
+        {
+          "name": "hetero",
+          "score": 0.9916324615478516,
+          "frames": 9
+        },
+        {
+          "name": "1boy",
+          "score": 0.9864078164100647,
+          "frames": 11
+        },
+        {
+          "name": "hat",
+          "score": 0.9793221950531006,
+          "frames": 12
+        },
+        {
+          "name": "shirt",
+          "score": 0.9784596562385559,
+          "frames": 11
+        },
+        {
+          "name": "peaked_cap",
+          "score": 0.9782882332801819,
+          "frames": 10
+        },
+        {
+          "name": "sex",
+          "score": 0.9763860106468201,
+          "frames": 10
+        },
+        {
+          "name": "penis",
+          "score": 0.9723526835441589,
+          "frames": 7
+        },
+        {
+          "name": "censored",
+          "score": 0.9616320133209229,
+          "frames": 7
+        },
+        {
+          "name": "necktie",
+          "score": 0.9533722400665283,
+          "frames": 11
+        },
+        {
+          "name": "white_shirt",
+          "score": 0.9490407705307007,
+          "frames": 10
+        },
+        {
+          "name": "breasts",
+          "score": 0.9487571716308594,
+          "frames": 9
+        },
+        {
+          "name": "white_hair",
+          "score": 0.9469808340072632,
+          "frames": 10
+        },
+        {
+          "name": "sleeveless_shirt",
+          "score": 0.9424926042556763,
+          "frames": 9
+        },
+        {
+          "name": "black_necktie",
+          "score": 0.9422664642333984,
+          "frames": 8
+        },
+        {
+          "name": "mosaic_censoring",
+          "score": 0.9375585913658142,
+          "frames": 7
+        },
+        {
+          "name": "purple_eyes",
+          "score": 0.935232400894165,
+          "frames": 8
+        },
+        {
+          "name": "traffic_cone",
+          "score": 0.9123739004135132,
+          "frames": 1
+        }
+      ],
+      "character_tags": [
+        {
+          "name": "enterprise_(azur_lane)",
+          "score": 0.997747540473938,
+          "frames": 8
+        },
+        {
+          "name": "commander_(azur_lane)",
+          "score": 0.9012131690979004,
+          "frames": 4
+        }
+      ]
+    },
+    "processed_at": "2026-04-11T11:01:54.992649+00:00"
+  },
+  {
+    "video_path": "/Users/jiahualiu/Downloads/app/classification/Video/Aerith_defeat/Aerith_defeat.mp4",
+    "duration_sec": 27.0,
+    "container_format": "mov",
+    "video_codec": "av1",
+    "width": 1920,
+    "height": 1080,
+    "frames_sampled": 12,
+    "tagger": "wd14:SwinV2_v3",
+    "wd14": {
+      "model": "SwinV2_v3",
+      "frames_tagged": 12,
+      "summary": {
+        "output_min_score": 0.9,
+        "inference_thresholds": {
+          "general": 0.15,
+          "character": 0.45
+        },
+        "counts": {
+          "general_tags_above_cutoff": 20,
+          "general_tags_total_before_cutoff": 104,
+          "character_tags_above_cutoff": 1,
+          "character_tags_wd14_above_cutoff": 1,
+          "character_tags_total_before_cutoff": 3
+        },
+        "dominant_rating_guess": "explicit",
+        "rating_above_cutoff": {
+          "explicit": 0.9947714805603027
+        },
+        "general_tag_string": "multiple_boys, mmf_threesome, 1girl, group_sex, threesome, penis, 2boys, oral, fellatio, spitroast, hetero, nipples, sex, 1boy, clothed_male_nude_female, brown_hair, vaginal, green_eyes, uncensored, closed_eyes",
+        "character_tag_string": "aerith_gainsborough",
+        "character_filename_fallback": null,
+        "combined_high_confidence": [
+          "general:multiple_boys",
+          "general:mmf_threesome",
+          "general:1girl",
+          "general:group_sex",
+          "general:threesome",
+          "general:penis",
+          "general:2boys",
+          "general:oral",
+          "general:fellatio",
+          "general:spitroast",
+          "general:hetero",
+          "general:nipples",
+          "general:sex",
+          "general:1boy",
+          "general:clothed_male_nude_female",
+          "general:brown_hair",
+          "general:vaginal",
+          "general:green_eyes",
+          "general:uncensored",
+          "general:closed_eyes",
+          "character:aerith_gainsborough"
+        ]
+      },
+      "rating": {
+        "explicit": 0.9947714805603027
+      },
+      "general_tags": [
+        {
+          "name": "multiple_boys",
+          "score": 0.9976475238800049,
+          "frames": 9
+        },
+        {
+          "name": "mmf_threesome",
+          "score": 0.9971839785575867,
+          "frames": 8
+        },
+        {
+          "name": "1girl",
+          "score": 0.9968928098678589,
+          "frames": 12
+        },
+        {
+          "name": "group_sex",
+          "score": 0.996247410774231,
+          "frames": 8
+        },
+        {
+          "name": "threesome",
+          "score": 0.9961391687393188,
+          "frames": 8
+        },
+        {
+          "name": "penis",
+          "score": 0.9939322471618652,
+          "frames": 12
+        },
+        {
+          "name": "2boys",
+          "score": 0.9907145500183105,
+          "frames": 9
+        },
+        {
+          "name": "oral",
+          "score": 0.9903135299682617,
+          "frames": 10
+        },
+        {
+          "name": "fellatio",
+          "score": 0.9900276064872742,
+          "frames": 10
+        },
+        {
+          "name": "spitroast",
+          "score": 0.9894587397575378,
+          "frames": 6
+        },
+        {
+          "name": "hetero",
+          "score": 0.9882475137710571,
+          "frames": 12
+        },
+        {
+          "name": "nipples",
+          "score": 0.9793931841850281,
+          "frames": 6
+        },
+        {
+          "name": "sex",
+          "score": 0.9752627611160278,
+          "frames": 9
+        },
+        {
+          "name": "1boy",
+          "score": 0.9678031206130981,
+          "frames": 6
+        },
+        {
+          "name": "clothed_male_nude_female",
+          "score": 0.9674063324928284,
+          "frames": 5
+        },
+        {
+          "name": "brown_hair",
+          "score": 0.9458340406417847,
+          "frames": 10
+        },
+        {
+          "name": "vaginal",
+          "score": 0.9433459043502808,
+          "frames": 8
+        },
+        {
+          "name": "green_eyes",
+          "score": 0.9392603635787964,
+          "frames": 4
+        },
+        {
+          "name": "uncensored",
+          "score": 0.912908673286438,
+          "frames": 12
+        },
+        {
+          "name": "closed_eyes",
+          "score": 0.9099833965301514,
+          "frames": 1
+        }
+      ],
+      "character_tags": [
+        {
+          "name": "aerith_gainsborough",
+          "score": 0.9959797859191895,
+          "frames": 10
+        }
+      ]
+    },
+    "processed_at": "2026-04-11T11:02:03.411767+00:00"
+  },
+  {
+    "video_path": "/Users/jiahualiu/Downloads/app/classification/Video/Dva_sit_02/Dva_sit_02.mp4",
+    "duration_sec": 1.966667,
+    "container_format": "mov",
+    "video_codec": "av1",
+    "width": 1280,
+    "height": 900,
+    "frames_sampled": 12,
+    "tagger": "wd14:SwinV2_v3",
+    "wd14": {
+      "model": "SwinV2_v3",
+      "frames_tagged": 12,
+      "summary": {
+        "output_min_score": 0.9,
+        "inference_thresholds": {
+          "general": 0.15,
+          "character": 0.45
+        },
+        "counts": {
+          "general_tags_above_cutoff": 12,
+          "general_tags_total_before_cutoff": 45,
+          "character_tags_above_cutoff": 0,
+          "character_tags_wd14_above_cutoff": 0,
+          "character_tags_total_before_cutoff": 0
+        },
+        "dominant_rating_guess": "explicit",
+        "rating_above_cutoff": {
+          "explicit": 0.9914225339889526
+        },
+        "general_tag_string": "1girl, object_insertion, anal, anal_object_insertion, hetero, penis, 1boy, breasts, ass, sex_toy, vaginal, sex",
+        "character_tag_string": "dva",
+        "character_filename_fallback": null,
+        "combined_high_confidence": [
+          "general:1girl",
+          "general:object_insertion",
+          "general:anal",
+          "general:anal_object_insertion",
+          "general:hetero",
+          "general:penis",
+          "general:1boy",
+          "general:breasts",
+          "general:ass",
+          "general:sex_toy",
+          "general:vaginal",
+          "general:sex",
+          "character:dva"
+        ],
+        "character_llm_raw_reply": "{\"characters\":[\"dva\"]}",
+        "character_llm_model": "gpt-4o-mini",
+        "character_llm_names": [
+          "dva"
+        ],
+        "character_tags_above_cutoff": 1
+      },
+      "rating": {
+        "explicit": 0.9914225339889526
+      },
+      "general_tags": [
+        {
+          "name": "1girl",
+          "score": 0.993891716003418,
+          "frames": 12
+        },
+        {
+          "name": "object_insertion",
+          "score": 0.9917700290679932,
+          "frames": 12
+        },
+        {
+          "name": "anal",
+          "score": 0.9861776828765869,
+          "frames": 12
+        },
+        {
+          "name": "anal_object_insertion",
+          "score": 0.9793028831481934,
+          "frames": 12
+        },
+        {
+          "name": "hetero",
+          "score": 0.9755562543869019,
+          "frames": 12
+        },
+        {
+          "name": "penis",
+          "score": 0.9725236892700195,
+          "frames": 12
+        },
+        {
+          "name": "1boy",
+          "score": 0.9684903621673584,
+          "frames": 12
+        },
+        {
+          "name": "breasts",
+          "score": 0.9582614898681641,
+          "frames": 12
+        },
+        {
+          "name": "ass",
+          "score": 0.9491169452667236,
+          "frames": 12
+        },
+        {
+          "name": "sex_toy",
+          "score": 0.9478206634521484,
+          "frames": 12
+        },
+        {
+          "name": "vaginal",
+          "score": 0.9474598169326782,
+          "frames": 12
+        },
+        {
+          "name": "sex",
+          "score": 0.9396023750305176,
+          "frames": 12
+        }
+      ],
+      "character_tags": [
+        {
+          "name": "dva",
+          "score": 0.95,
+          "source": "llm"
+        }
+      ]
+    },
+    "processed_at": "2026-04-11T11:02:16.414436+00:00"
+  },
+  {
+    "video_path": "/Users/jiahualiu/Downloads/app/classification/Video/Infinity_Nikki_2_2k/Infinity_Nikki_2_2k.mp4",
+    "duration_sec": 100.133333,
+    "container_format": "mov",
+    "video_codec": "av1",
+    "width": 1920,
+    "height": 1080,
+    "frames_sampled": 12,
+    "tagger": "wd14:SwinV2_v3",
+    "wd14": {
+      "model": "SwinV2_v3",
+      "frames_tagged": 12,
+      "summary": {
+        "output_min_score": 0.9,
+        "inference_thresholds": {
+          "general": 0.15,
+          "character": 0.45
+        },
+        "counts": {
+          "general_tags_above_cutoff": 8,
+          "general_tags_total_before_cutoff": 95,
+          "character_tags_above_cutoff": 0,
+          "character_tags_wd14_above_cutoff": 0,
+          "character_tags_total_before_cutoff": 0
+        },
+        "dominant_rating_guess": "explicit",
+        "rating_above_cutoff": {
+          "questionable": 0.9713727235794067,
+          "explicit": 0.9833463430404663
+        },
+        "general_tag_string": "1girl, nipples, 1boy, hetero, loli, penis, solo, sex",
+        "character_tag_string": "nikki",
+        "character_filename_fallback": null,
+        "combined_high_confidence": [
+          "general:1girl",
+          "general:nipples",
+          "general:1boy",
+          "general:hetero",
+          "general:loli",
+          "general:penis",
+          "general:solo",
+          "general:sex",
+          "character:nikki"
+        ],
+        "character_llm_raw_reply": "{\"characters\":[\"nikki\"]}",
+        "character_llm_model": "gpt-4o-mini",
+        "character_llm_names": [
+          "nikki"
+        ],
+        "character_tags_above_cutoff": 1
+      },
+      "rating": {
+        "questionable": 0.9713727235794067,
+        "explicit": 0.9833463430404663
+      },
+      "general_tags": [
+        {
+          "name": "1girl",
+          "score": 0.9917485117912292,
+          "frames": 12
+        },
+        {
+          "name": "nipples",
+          "score": 0.9766053557395935,
+          "frames": 12
+        },
+        {
+          "name": "1boy",
+          "score": 0.9607927799224854,
+          "frames": 8
+        },
+        {
+          "name": "hetero",
+          "score": 0.9573345184326172,
+          "frames": 8
+        },
+        {
+          "name": "loli",
+          "score": 0.9490903615951538,
+          "frames": 12
+        },
+        {
+          "name": "penis",
+          "score": 0.938078761100769,
+          "frames": 8
+        },
+        {
+          "name": "solo",
+          "score": 0.9130262136459351,
+          "frames": 4
+        },
+        {
+          "name": "sex",
+          "score": 0.9062774777412415,
+          "frames": 8
+        }
+      ],
+      "character_tags": [
+        {
+          "name": "nikki",
+          "score": 0.95,
+          "source": "llm"
+        }
+      ]
+    },
+    "processed_at": "2026-04-11T11:02:30.669751+00:00"
+  }
+]

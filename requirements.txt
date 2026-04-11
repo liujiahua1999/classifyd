@@ -1,0 +1,4 @@
+# Local WD14 tagging (ffmpeg samples frames; ONNX inference via imgutils)
+dghs-imgutils>=0.14.0
+onnxruntime>=1.17.0
+python-dotenv>=1.0.0

@@ -1,0 +1,7 @@
+api-key
+api
+.env
+*.mp4
+*.mkv
+__pycache__/
+.venv/
