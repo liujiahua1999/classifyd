@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -42,10 +43,10 @@ except ImportError:
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
 
-VIDEO_EXTS = (
-    ".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v",
-    ".MP4", ".MKV", ".WEBM", ".MOV", ".AVI", ".M4V",
-)
+# Single lowercase set: paths are matched with suffix.lower()
+VIDEO_SUFFIXES = frozenset({".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v"})
+# Progress logging while scanning (every N paths seen under a directory root)
+_COLLECT_PROGRESS_INTERVAL = 10_000
 
 DEFAULT_WD14_MODEL = "SwinV2_v3"
 DEFAULT_CHARACTER_NAMES_PATH = Path(__file__).resolve().parent / "character_names.txt"
@@ -544,19 +545,61 @@ class Row:
         return d
 
 
-def collect_videos(paths: list[Path]) -> list[Path]:
+def collect_videos(
+    paths: list[Path],
+    *,
+    verbose_scan: bool = False,
+) -> list[Path]:
+    """
+    Walk each path once (not once per extension). Large/complex trees are much faster
+    than the previous 12× rglob approach.
+    """
     out: set[Path] = set()
-    for p in paths:
-        p = p.expanduser().resolve()
+    scanned = 0
+
+    def consider_file(f: Path) -> None:
+        nonlocal scanned
+        scanned += 1
+        if verbose_scan and scanned % _COLLECT_PROGRESS_INTERVAL == 0:
+            log.info(
+                "Scan progress: %d paths examined, %d video(s) found so far",
+                scanned,
+                len(out),
+            )
+        try:
+            if not f.is_file():
+                return
+        except OSError:
+            return
+        if f.suffix.lower() not in VIDEO_SUFFIXES:
+            return
+        try:
+            out.add(f.resolve())
+        except OSError:
+            pass
+
+    for raw in paths:
+        p = raw.expanduser().resolve()
         if not p.exists():
             raise FileNotFoundError(p)
         if p.is_dir():
-            for ext in VIDEO_EXTS:
-                for f in p.rglob(f"*{ext}"):
-                    if f.is_file():
-                        out.add(f.resolve())
+            t0 = time.perf_counter()
+            n_videos_before = len(out)
+            if verbose_scan:
+                log.info("Scanning for videos under %s ...", p)
+            scanned = 0
+            for f in p.rglob("*"):
+                consider_file(f)
+            if verbose_scan:
+                log.info(
+                    "Finished %s (%d paths in %.1fs, +%d video(s) under this root)",
+                    p,
+                    scanned,
+                    time.perf_counter() - t0,
+                    len(out) - n_videos_before,
+                )
         elif p.is_file():
-            out.add(p)
+            consider_file(p)
         else:
             raise ValueError(f"Not a file or directory: {p}")
     return sorted(out)
@@ -754,7 +797,15 @@ def main() -> int:
     )
     ap.add_argument("--workers", type=int, default=1, metavar="N")
     ap.add_argument("--quiet", action="store_true")
-    ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help=(
+            "Enable debug logs and periodic directory-scan progress "
+            f"(every {_COLLECT_PROGRESS_INTERVAL} paths) for large trees"
+        ),
+    )
     args = ap.parse_args()
 
     if args.verbose:
@@ -777,8 +828,9 @@ def main() -> int:
         log.error("ffmpeg and ffprobe must be on PATH")
         return 1
 
+    t_collect = time.perf_counter()
     try:
-        videos = collect_videos(all_in)
+        videos = collect_videos(all_in, verbose_scan=args.verbose)
     except (FileNotFoundError, ValueError) as e:
         log.error("%s", e)
         return 1
@@ -786,6 +838,16 @@ def main() -> int:
     if not videos:
         log.error("No video files found.")
         return 1
+
+    log.info(
+        "Discovered %d video file(s) in %.1fs.",
+        len(videos),
+        time.perf_counter() - t_collect,
+    )
+    if not args.dry_run:
+        log.info(
+            "WD14 loads its ONNX model on the first tagged frames (one-time; can take a bit)."
+        )
 
     cn_path: Path | None = args.character_names
     if cn_path is None:
