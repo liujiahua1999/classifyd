@@ -32,6 +32,13 @@ type Job struct {
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 	Error      string    `json:"error,omitempty"`
 	ResultJSON string    `json:"result_json,omitempty"`
+	// Probe fields (done jobs, ffprobe) for fast aggregates / UI without parsing full JSON.
+	DurationSec *float64 `json:"duration_sec,omitempty"`
+	VideoCodec  string    `json:"video_codec,omitempty"`
+	AudioCodec  string    `json:"audio_codec,omitempty"`
+	Width       *int      `json:"width,omitempty"`
+	Height      *int      `json:"height,omitempty"`
+	Container   string    `json:"container_fmt,omitempty"`
 }
 
 type Stats struct {
@@ -40,6 +47,16 @@ type Stats struct {
 	Processing int64 `json:"processing"`
 	Done       int64 `json:"done"`
 	Failed     int64 `json:"failed"`
+}
+
+// DoneMeta is optional structured probe data stored on the job row for aggregates.
+type DoneMeta struct {
+	DurationSec *float64
+	VideoCodec  string
+	AudioCodec  string
+	Width       *int
+	Height      *int
+	Container   string
 }
 
 type Store struct {
@@ -83,10 +100,32 @@ func (s *Store) migrate() error {
 			path TEXT PRIMARY KEY,
 			added_at INTEGER NOT NULL
 		);`,
+		`CREATE TABLE IF NOT EXISTS job_tags (
+			job_id TEXT NOT NULL,
+			tag TEXT NOT NULL,
+			PRIMARY KEY (job_id, tag)
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_job_tags_tag ON job_tags(tag);`,
 	}
 	for _, q := range stmts {
 		if _, err := s.db.Exec(q); err != nil {
 			return err
+		}
+	}
+	// Best-effort column adds for older DBs.
+	alters := []string{
+		`ALTER TABLE jobs ADD COLUMN duration_sec REAL`,
+		`ALTER TABLE jobs ADD COLUMN video_codec TEXT`,
+		`ALTER TABLE jobs ADD COLUMN audio_codec TEXT`,
+		`ALTER TABLE jobs ADD COLUMN width INTEGER`,
+		`ALTER TABLE jobs ADD COLUMN height INTEGER`,
+		`ALTER TABLE jobs ADD COLUMN container_fmt TEXT`,
+	}
+	for _, q := range alters {
+		if _, err := s.db.Exec(q); err != nil {
+			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+				return err
+			}
 		}
 	}
 	return nil
@@ -155,23 +194,29 @@ func (s *Store) ClaimNext(ctx context.Context) (*Job, error) {
 	var j Job
 	var created, started, finished sql.NullInt64
 	var errMsg, res sql.NullString
+	var dur sql.NullFloat64
+	var vc, ac, cf sql.NullString
+	var wi, he sql.NullInt64
 	err = tx.QueryRowContext(ctx,
-		`SELECT id, path, status, created_at, started_at, finished_at, err, result_json
+		`SELECT id, path, status, created_at, started_at, finished_at, err, result_json,
+			duration_sec, video_codec, audio_codec, width, height, container_fmt
 		 FROM jobs WHERE status = ? ORDER BY created_at ASC LIMIT 1`,
 		string(StatusPending),
-	).Scan(&j.ID, &j.Path, &j.Status, &created, &started, &finished, &errMsg, &res)
-	if errMsg.Valid {
-		j.Error = errMsg.String
-	}
-	if res.Valid {
-		j.ResultJSON = res.String
-	}
+	).Scan(&j.ID, &j.Path, &j.Status, &created, &started, &finished, &errMsg, &res,
+		&dur, &vc, &ac, &wi, &he, &cf)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
+	if errMsg.Valid {
+		j.Error = errMsg.String
+	}
+	if res.Valid {
+		j.ResultJSON = res.String
+	}
+	applyProbeScan(&j, dur, vc, ac, wi, he, cf)
 	j.CreatedAt = time.Unix(created.Int64, 0)
 	if started.Valid {
 		t := time.Unix(started.Int64, 0)
@@ -199,13 +244,68 @@ func (s *Store) ClaimNext(ctx context.Context) (*Job, error) {
 	return &j, nil
 }
 
-func (s *Store) MarkDone(ctx context.Context, id string, resultJSON string) error {
+func (s *Store) MarkDone(ctx context.Context, id string, resultJSON string, tags []string, meta *DoneMeta) error {
 	now := time.Now().Unix()
-	_, err := s.db.ExecContext(ctx,
-		`UPDATE jobs SET status = ?, finished_at = ?, result_json = ?, err = '' WHERE id = ?`,
-		string(StatusDone), now, resultJSON, id,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM job_tags WHERE job_id = ?`, id); err != nil {
+		return err
+	}
+	if len(tags) > 0 {
+		stmt, err := tx.PrepareContext(ctx, `INSERT OR IGNORE INTO job_tags(job_id, tag) VALUES(?, ?)`)
+		if err != nil {
+			return err
+		}
+		for _, t := range tags {
+			t = strings.TrimSpace(t)
+			if t == "" {
+				continue
+			}
+			if _, err := stmt.ExecContext(ctx, id, t); err != nil {
+				_ = stmt.Close()
+				return err
+			}
+		}
+		_ = stmt.Close()
+	}
+
+	var dur, vc, ac, cont, w, h interface{}
+	if meta != nil {
+		if meta.DurationSec != nil {
+			dur = *meta.DurationSec
+		}
+		if strings.TrimSpace(meta.VideoCodec) != "" {
+			vc = meta.VideoCodec
+		}
+		if strings.TrimSpace(meta.AudioCodec) != "" {
+			ac = meta.AudioCodec
+		}
+		if strings.TrimSpace(meta.Container) != "" {
+			cont = meta.Container
+		}
+		if meta.Width != nil {
+			w = *meta.Width
+		}
+		if meta.Height != nil {
+			h = *meta.Height
+		}
+	}
+	_, err = tx.ExecContext(ctx,
+		`UPDATE jobs SET status = ?, finished_at = ?, result_json = ?, err = '',
+			duration_sec = ?, video_codec = ?, audio_codec = ?, width = ?, height = ?, container_fmt = ?
+		 WHERE id = ?`,
+		string(StatusDone), now, resultJSON,
+		dur, vc, ac, w, h, cont,
+		id,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) MarkFailed(ctx context.Context, id string, errMsg string) error {
@@ -237,18 +337,44 @@ func (s *Store) RetryJob(ctx context.Context, id string) error {
 }
 
 func (s *Store) DeleteJob(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE id = ?`, id)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM job_tags WHERE job_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM jobs WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) PurgeByStatus(ctx context.Context, status JobStatus) (int64, error) {
-	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM jobs WHERE status = ?`, string(status),
-	)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM job_tags WHERE job_id IN (SELECT id FROM jobs WHERE status = ?)`,
+		string(status),
+	); err != nil {
+		return 0, err
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM jobs WHERE status = ?`, string(status))
+	if err != nil {
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 func (s *Store) Stats(ctx context.Context) (Stats, error) {
@@ -293,12 +419,14 @@ func (s *Store) ListJobs(ctx context.Context, status string, limit, offset int) 
 	status = strings.TrimSpace(strings.ToLower(status))
 	if status != "" && status != "all" {
 		rows, err = s.db.QueryContext(ctx,
-			`SELECT id, path, status, created_at, started_at, finished_at, err, result_json
+			`SELECT id, path, status, created_at, started_at, finished_at, err, result_json,
+				duration_sec, video_codec, audio_codec, width, height, container_fmt
 			 FROM jobs WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
 			status, limit, offset)
 	} else {
 		rows, err = s.db.QueryContext(ctx,
-			`SELECT id, path, status, created_at, started_at, finished_at, err, result_json
+			`SELECT id, path, status, created_at, started_at, finished_at, err, result_json,
+				duration_sec, video_codec, audio_codec, width, height, container_fmt
 			 FROM jobs ORDER BY created_at DESC LIMIT ? OFFSET ?`,
 			limit, offset)
 	}
@@ -315,7 +443,11 @@ func scanJobs(rows *sql.Rows) ([]Job, error) {
 		var j Job
 		var created, started, finished sql.NullInt64
 		var errMsg, res sql.NullString
-		if err := rows.Scan(&j.ID, &j.Path, &j.Status, &created, &started, &finished, &errMsg, &res); err != nil {
+		var dur sql.NullFloat64
+		var vc, ac, cf sql.NullString
+		var wi, he sql.NullInt64
+		if err := rows.Scan(&j.ID, &j.Path, &j.Status, &created, &started, &finished, &errMsg, &res,
+			&dur, &vc, &ac, &wi, &he, &cf); err != nil {
 			return nil, err
 		}
 		if errMsg.Valid {
@@ -324,6 +456,7 @@ func scanJobs(rows *sql.Rows) ([]Job, error) {
 		if res.Valid {
 			j.ResultJSON = res.String
 		}
+		applyProbeScan(&j, dur, vc, ac, wi, he, cf)
 		j.CreatedAt = time.Unix(created.Int64, 0)
 		if started.Valid {
 			t := time.Unix(started.Int64, 0)
@@ -340,11 +473,17 @@ func scanJobs(rows *sql.Rows) ([]Job, error) {
 
 func (s *Store) GetJob(ctx context.Context, id string) (*Job, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, path, status, created_at, started_at, finished_at, err, result_json FROM jobs WHERE id = ?`, id)
+		`SELECT id, path, status, created_at, started_at, finished_at, err, result_json,
+			duration_sec, video_codec, audio_codec, width, height, container_fmt
+		 FROM jobs WHERE id = ?`, id)
 	var j Job
 	var created, started, finished sql.NullInt64
 	var errMsg, res sql.NullString
-	err := row.Scan(&j.ID, &j.Path, &j.Status, &created, &started, &finished, &errMsg, &res)
+	var dur sql.NullFloat64
+	var vc, ac, cf sql.NullString
+	var wi, he sql.NullInt64
+	err := row.Scan(&j.ID, &j.Path, &j.Status, &created, &started, &finished, &errMsg, &res,
+		&dur, &vc, &ac, &wi, &he, &cf)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -357,6 +496,7 @@ func (s *Store) GetJob(ctx context.Context, id string) (*Job, error) {
 	if res.Valid {
 		j.ResultJSON = res.String
 	}
+	applyProbeScan(&j, dur, vc, ac, wi, he, cf)
 	j.CreatedAt = time.Unix(created.Int64, 0)
 	if started.Valid {
 		t := time.Unix(started.Int64, 0)
@@ -483,4 +623,33 @@ func (s *Store) ScanRoot(root string) (added int, skipped int, err error) {
 		}
 	}
 	return added, skipped, nil
+}
+
+func applyProbeScan(j *Job, dur sql.NullFloat64, vc, ac sql.NullString, wi, he sql.NullInt64, cf sql.NullString) {
+	j.DurationSec = nil
+	j.VideoCodec = ""
+	j.AudioCodec = ""
+	j.Container = ""
+	j.Width, j.Height = nil, nil
+	if dur.Valid {
+		x := dur.Float64
+		j.DurationSec = &x
+	}
+	if vc.Valid {
+		j.VideoCodec = vc.String
+	}
+	if ac.Valid {
+		j.AudioCodec = ac.String
+	}
+	if wi.Valid {
+		w := int(wi.Int64)
+		j.Width = &w
+	}
+	if he.Valid {
+		h := int(he.Int64)
+		j.Height = &h
+	}
+	if cf.Valid {
+		j.Container = cf.String
+	}
 }

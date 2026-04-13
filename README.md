@@ -2,7 +2,14 @@
 
 Tdarr-style **Go** daemon: SQLite job queue, worker pool, REST API, embedded web UI.
 
-Each job runs **ffprobe** on the video path and stores JSON (`tagger: ffprobe-metadata`). Replace or extend `internal/pipeline` to add ONNX or another tagger.
+Each job runs **ffprobe** on the video path and stores JSON with:
+
+- `video_stats` — duration, codecs, resolution, fps, container
+- `metadata_tags` — flattened `format` / `video` / `audio` stream tags from ffprobe
+- `frequency_tokens` — deduplicated strings used for **cross-library frequency** (which values are common vs rare)
+- `probe` — raw ffprobe JSON
+
+Replace or extend `internal/pipeline` to add ONNX or another tagger; `frequency_tokens` can be extended with ML tags the same way.
 
 ## Build
 
@@ -21,7 +28,7 @@ export CLASSIFYD_WORKERS=2
 ./classifyd
 ```
 
-Open **http://127.0.0.1:8080/** — dashboard with progress bar, ETA, job filters, retry/purge controls.
+Open **http://127.0.0.1:8080/** — dashboard with progress, job list (ffprobe summary per row), **tag frequency** and **codec/container** analytics.
 
 ### Environment
 
@@ -46,6 +53,10 @@ Open **http://127.0.0.1:8080/** — dashboard with progress bar, ETA, job filter
 | DELETE | `/api/v1/library/roots` | `{"path":"/path"}` — remove a root |
 | POST | `/api/v1/retry` | `{"id":"<uuid>"}` or `{"id":"all"}` — re-queue failed job(s) |
 | POST | `/api/v1/purge` | `{"status":"done"}` or `{"status":"failed"}` — bulk delete |
+| GET | `/api/v1/analytics/ffprobe` | Histograms: video/audio codec, container, avg duration (finished jobs) |
+| GET | `/api/v1/analytics/tags?limit=&min_count=&prefix=` | Token frequency + `% of finished jobs` + heuristic notes |
+| GET | `/api/v1/jobs/{id}/tags` | `frequency_tokens` stored for that job |
+| POST | `/api/v1/analytics/rebuild-tags` | Rebuild `job_tags` from `result_json` (after upgrade / repair) |
 
 ## Docker
 

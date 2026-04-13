@@ -106,6 +106,14 @@ header .spacer{flex:1}
 
 /* scrollable table wrapper */
 .table-wrap{overflow-x:auto}
+.probe-line{color:var(--dim);font-size:.65rem;margin-top:.2rem;font-family:ui-monospace,monospace}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.bucket-list{font-size:.72rem;color:var(--muted);line-height:1.45}
+.bucket-list div{display:flex;justify-content:space-between;gap:.5rem;border-bottom:1px solid var(--border);padding:.2rem 0}
+.bucket-list span:last-child{color:var(--text);font-weight:600}
+.analytics-sub{font-size:.72rem;color:var(--muted);margin:0 0 .75rem;line-height:1.45}
+#tagPrefix{max-width:160px;padding:.35rem .5rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.72rem}
 
 /* toast */
 .toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.65rem 1rem;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:.78rem;z-index:999;opacity:0;transform:translateY(10px);transition:all .25s ease;pointer-events:none}
@@ -151,6 +159,34 @@ header .spacer{flex:1}
     <div class="scan-msg" id="scanMsg"></div>
   </div>
 
+  <!-- Analytics -->
+  <div class="section">
+    <div class="section-head">
+      <h2>Tags &amp; ffprobe stats</h2>
+      <div class="right">
+        <input type="text" id="tagPrefix" placeholder="prefix filter" title="Filter token rows"/>
+        <button type="button" class="btn" id="reloadAnalyticsBtn">Refresh</button>
+        <button type="button" class="btn" id="rebuildTagsBtn" title="Rebuild job_tags from stored JSON (after upgrade)">Rebuild index</button>
+      </div>
+    </div>
+    <p class="analytics-sub">Tokens combine codecs, containers, resolution, and <b>format/stream metadata</b> from ffprobe. A high <b>% of done jobs</b> usually means boilerplate you can ignore for downstream tagging; rare rows are more distinctive.</p>
+    <div class="grid2">
+      <div>
+        <h3 style="font-size:.75rem;color:var(--muted);margin:0 0 .35rem;">Finished jobs — codecs &amp; containers</h3>
+        <div id="ffprobeAgg" class="bucket-list"></div>
+      </div>
+      <div>
+        <h3 style="font-size:.75rem;color:var(--muted);margin:0 0 .35rem;">Token frequency (cross-job)</h3>
+        <div class="table-wrap">
+          <table class="job-table">
+            <thead><tr><th>Token</th><th>Count</th><th>% done</th><th>Note</th></tr></thead>
+            <tbody id="tagFreqBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Jobs -->
   <div class="section">
     <div class="section-head">
@@ -163,7 +199,7 @@ header .spacer{flex:1}
     </div>
     <div class="table-wrap">
       <table class="job-table">
-        <thead><tr><th>Status</th><th>Path</th><th>Time</th><th>Error</th><th></th></tr></thead>
+        <thead><tr><th>Status</th><th>Path / ffprobe</th><th>Time</th><th>Error</th><th></th></tr></thead>
         <tbody id="jobs"></tbody>
       </table>
     </div>
@@ -312,9 +348,15 @@ async function loadJobs() {
         const st = (j.status || '').toLowerCase();
         const ts = j.finished_at || j.started_at || j.created_at;
         const canRetry = st === 'failed';
+        const pp = [];
+        if (j.video_codec) pp.push(esc(j.video_codec));
+        if (j.container_fmt) pp.push(esc(j.container_fmt));
+        if (j.width && j.height) pp.push(`${j.width}\u00d7${j.height}`);
+        if (j.duration_sec != null && !isNaN(Number(j.duration_sec))) pp.push(Math.round(Number(j.duration_sec)) + 's');
+        const probeLine = pp.length ? `<div class="probe-line">${pp.join(' · ')}</div>` : '';
         return `<tr>
           <td><span class="st st-${st}">${esc(j.status)}</span></td>
-          <td class="path-cell">${fmtPath(j.path)}</td>
+          <td class="path-cell">${fmtPath(j.path)}${probeLine}</td>
           <td class="time-cell">${fmtTime(ts)}</td>
           <td class="err-cell">${esc(j.error || '')}</td>
           <td class="actions-cell">${canRetry ? `<button class="btn warn" onclick="retryOne('${esc(j.id)}')">Retry</button>` : ''}</td>
@@ -393,10 +435,69 @@ function toast(msg, isErr) {
   toastTimer = setTimeout(() => el.className = 'toast', 3000);
 }
 
+function renderBuckets(agg) {
+  const el = $('ffprobeAgg');
+  if (!agg || !agg.done_jobs) {
+    el.innerHTML = '<div>No finished jobs yet.</div>';
+    return;
+  }
+  const avg = agg.avg_duration_sec != null ? `<div style="margin-bottom:.5rem;color:var(--text)">Avg duration: <b>${(+agg.avg_duration_sec).toFixed(1)}s</b> · <b>${agg.done_jobs}</b> done job(s)</div>` : `<div style="margin-bottom:.5rem">Done jobs: <b>${agg.done_jobs}</b></div>`;
+  const block = (title, rows) => {
+    if (!rows || !rows.length) return '';
+    const lines = rows.slice(0, 12).map(r => `<div><span>${esc(r.key)}</span><span>${r.count} (${(+r.pct_of_done_jobs).toFixed(1)}%)</span></div>`).join('');
+    return `<div style="margin-top:.4rem"><div style="font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem">${title}</div>${lines}</div>`;
+  };
+  el.innerHTML = avg + block('Video codec', agg.video_codec) + block('Audio codec', agg.audio_codec) + block('Container', agg.container);
+}
+
+function renderTagFreq(data) {
+  const tb = $('tagFreqBody');
+  const rows = (data && data.tags) || [];
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="4" class="empty" style="padding:1rem">No tokens indexed yet. Finish jobs or run <b>Rebuild index</b>.</td></tr>`;
+    return;
+  }
+  const dj = data.done_jobs || 0;
+  tb.innerHTML = rows.slice(0, 80).map(r => `<tr>
+    <td class="path-cell" style="max-width:320px">${esc(r.tag)}</td>
+    <td>${r.count}</td>
+    <td>${(+r.pct_of_done_jobs).toFixed(1)}%</td>
+    <td class="err-cell" style="color:var(--muted);max-width:200px">${esc(r.note || '')}</td>
+  </tr>`).join('');
+}
+
+async function loadAnalytics() {
+  try {
+    const prefix = ($('tagPrefix').value || '').trim();
+    const q = new URLSearchParams({ limit: '200', min_count: '1' });
+    if (prefix) q.set('prefix', prefix);
+    const [a, t] = await Promise.all([
+      fetch('/api/v1/analytics/ffprobe').then(r => r.json()),
+      fetch('/api/v1/analytics/tags?' + q).then(r => r.json())
+    ]);
+    renderBuckets(a);
+    renderTagFreq(t);
+  } catch {}
+}
+
+$('reloadAnalyticsBtn').onclick = () => loadAnalytics();
+$('tagPrefix').addEventListener('keydown', e => { if (e.key === 'Enter') loadAnalytics(); });
+
+$('rebuildTagsBtn').onclick = async () => {
+  if (!confirm('Rebuild tag index from stored job JSON?')) return;
+  try {
+    const r = await fetch('/api/v1/analytics/rebuild-tags', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.statusText);
+    toast(`Indexed ${j.tags_written} token(s) across ${j.jobs_updated} job(s)`);
+    loadAnalytics();
+  } catch (e) { toast(e.message, true); }
+};
+
 async function refresh() {
   const dot = $('refresh-dot');
   dot.classList.add('active');
-  await Promise.all([loadStats(), loadJobs()]);
+  await Promise.all([loadStats(), loadJobs(), loadAnalytics()]);
   setTimeout(() => dot.classList.remove('active'), 300);
 }
 

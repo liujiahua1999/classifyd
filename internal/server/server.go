@@ -27,6 +27,9 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/library/roots", h.roots)
 	mux.HandleFunc("/api/v1/retry", h.retry)
 	mux.HandleFunc("/api/v1/purge", h.purge)
+	mux.HandleFunc("/api/v1/analytics/tags", h.analyticsTags)
+	mux.HandleFunc("/api/v1/analytics/ffprobe", h.analyticsFFprobe)
+	mux.HandleFunc("/api/v1/analytics/rebuild-tags", h.analyticsRebuildTags)
 
 	sub, err := fs.Sub(static, "static")
 	if err != nil {
@@ -78,10 +81,19 @@ func (h *Handler) jobs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) jobByID(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/api/v1/jobs/")
-	id = strings.Trim(id, "/")
+	suffix := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/v1/jobs/"), "/")
+	if suffix == "" {
+		http.NotFound(w, r)
+		return
+	}
+	parts := strings.SplitN(suffix, "/", 2)
+	id := parts[0]
 	if id == "" {
 		http.NotFound(w, r)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "tags" {
+		h.jobTags(w, r, id)
 		return
 	}
 
@@ -108,6 +120,68 @@ func (h *Handler) jobByID(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (h *Handler) jobTags(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	tags, err := h.Store.ListJobTags(r.Context(), id)
+	if err != nil {
+		writeErr(w, err, 500)
+		return
+	}
+	writeJSON(w, tags)
+}
+
+func (h *Handler) analyticsTags(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	minC, _ := strconv.ParseInt(q.Get("min_count"), 10, 64)
+	prefix := q.Get("prefix")
+	rows, done, err := h.Store.TagFrequency(r.Context(), limit, minC, prefix)
+	if err != nil {
+		writeErr(w, err, 500)
+		return
+	}
+	writeJSON(w, map[string]any{
+		"done_jobs": done,
+		"tags":      rows,
+	})
+}
+
+func (h *Handler) analyticsFFprobe(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	agg, err := h.Store.FFProbeAggregates(r.Context())
+	if err != nil {
+		writeErr(w, err, 500)
+		return
+	}
+	writeJSON(w, agg)
+}
+
+func (h *Handler) analyticsRebuildTags(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	jobs, tags, err := h.Store.RebuildJobTags(r.Context())
+	if err != nil {
+		writeErr(w, err, 500)
+		return
+	}
+	writeJSON(w, map[string]any{
+		"jobs_updated": jobs,
+		"tags_written": tags,
+	})
 }
 
 type scanReq struct {

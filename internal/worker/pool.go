@@ -63,14 +63,26 @@ func (p *Pool) loop(ctx context.Context, id int) {
 		backoff = minPoll
 		t0 := time.Now()
 		log.Printf("worker %d: processing %s", id, job.Path)
-		raw, err := p.Classifier.ClassifyVideo(ctx, job.Path)
+		res, err := p.Classifier.ClassifyVideo(ctx, job.Path)
 		elapsed := time.Since(t0)
 		if err != nil {
 			_ = p.Store.MarkFailed(ctx, job.ID, err.Error())
 			log.Printf("worker %d: FAIL %s (%v): %v", id, job.Path, elapsed.Round(time.Millisecond), err)
 			continue
 		}
-		if err := p.Store.MarkDone(ctx, job.ID, string(raw)); err != nil {
+		var dm *store.DoneMeta
+		if res.Meta != nil {
+			m := res.Meta
+			dm = &store.DoneMeta{
+				DurationSec: m.DurationSec,
+				VideoCodec:  m.VideoCodec,
+				AudioCodec:  m.AudioCodec,
+				Width:       m.Width,
+				Height:      m.Height,
+				Container:   m.Container,
+			}
+		}
+		if err := p.Store.MarkDone(ctx, job.ID, string(res.Raw), res.FrequencyTokens, dm); err != nil {
 			log.Printf("worker %d: mark-done error %s: %v", id, job.ID, err)
 		} else {
 			log.Printf("worker %d: done %s (%v)", id, job.Path, elapsed.Round(time.Millisecond))
