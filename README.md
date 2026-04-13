@@ -1,18 +1,21 @@
 # classifyd
 
-Tdarr-style **Go** daemon for video tagging: SQLite job queue, worker pool, REST API, embedded web UI.
+Tdarr-style **Go** daemon for video tagging with **WD14 (Danbooru-style)** character identification. SQLite job queue, worker pool, REST API, embedded web dashboard.
 
-## Tagging Pipeline
+## Pipeline
 
-**Default:** runs `ffprobe` only (stores codec/container/duration metadata).
+For each video:
 
-**WD14 mode:** set `PYTHON_SCRIPT` to call `anime_video_classifier.py` as a subprocess. Each video is tagged with the **WD14 Danbooru tagger** (ONNX) — general tags, character tags, and rating — with character identification as the primary goal:
+1. **ffprobe** — extract codec, container, duration, resolution metadata
+2. **ffmpeg** — extract N sampled frames (JPEG) from the video
+3. **WD14 ONNX** — tag each frame via `wd14_tagger.py` (SwinV2_v3); aggregate max scores across frames; output general tags, character tags, and dominant rating
+4. **Character fallback** — if WD14 yields no character tags above the cutoff:
+   - **Filename matching** — match known names from `character_names.txt` against the video filename (longest-first, span masking)
+   - **LLM fallback** — call an OpenAI-compatible chat API to read the filename and extract Danbooru-style character tags
 
-1. WD14 tags N sampled frames → aggregate max scores across frames
-2. If no character tags survive the score cutoff → match `character_names.txt` against the filename
-3. If still empty → optional LLM fallback (OpenAI-compatible API)
+If `wd14_tagger.py` is not found, falls back to ffprobe-only mode (metadata + filename/LLM character identification, no visual tagging).
 
-The Go service stores the full JSON result plus indexed columns (`character_tag_string`, `general_tag_string`, `dominant_rating`, etc.) for fast SQL lookups, and `job_tags` for cross-library frequency analysis.
+Indexed columns (`character_tag_string`, `general_tag_string`, `dominant_rating`, `tagger`, etc.) enable fast SQL lookups. A `job_tags` table stores per-job frequency tokens for cross-library analytics.
 
 ## Build
 
@@ -20,21 +23,31 @@ The Go service stores the full JSON result plus indexed columns (`character_tag_
 go build -o classifyd ./cmd/classifyd
 ```
 
-Needs **ffprobe** on `PATH`. For WD14 mode, also needs Python 3.10+ with `dghs-imgutils` and `onnxruntime`.
+Needs **ffprobe** and **ffmpeg** on `PATH`.
+
+### WD14 Dependencies
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install "dghs-imgutils[onnxruntime]" onnxruntime
+```
+
+Set `PYTHON_BIN=.venv/bin/python3` to point at the venv Python.
 
 ## Run
 
 ```bash
-# ffprobe-only (default)
-./classifyd
-
-# WD14 mode
-export PYTHON_SCRIPT=./anime_video_classifier.py
-export CLASSIFYD_WORKERS=2
-./classifyd
+PYTHON_BIN=.venv/bin/python3 ./classifyd
 ```
 
-Open **http://127.0.0.1:8080/** — character-focused dashboard with tag analytics, rating breakdown, progress, and job management.
+Place these files next to the binary (or in cwd) for auto-discovery:
+
+- **`wd14_tagger.py`** — WD14 ONNX inference helper (ships with this repo). Auto-discovered; or set `WD14_TAGGER_SCRIPT`.
+- **`api`** — two-line file: line 1 = API key, line 2 = base URL (e.g. `https://xiaoai.plus/v1`). Enables LLM character fallback.
+- **`character_names.txt`** — one Danbooru name per line (`#` = comment). Enables filename matching.
+
+Open **http://127.0.0.1:8080/** for the dashboard.
 
 ### Environment
 
@@ -44,11 +57,14 @@ Open **http://127.0.0.1:8080/** — character-focused dashboard with tag analyti
 | `CLASSIFYD_DATA` | `./data` | SQLite directory |
 | `CLASSIFYD_WORKERS` | `1` | Concurrent workers |
 | `FFPROBE_BIN` | `ffprobe` | ffprobe binary |
-| `PYTHON_BIN` | `python3` | Python interpreter |
-| `PYTHON_SCRIPT` | *(empty)* | Path to `anime_video_classifier.py` (enables WD14) |
-| `PYTHON_EXTRA_ARGS` | *(empty)* | Extra flags forwarded to the script (e.g. `--character-llm --frames 16`) |
-
-All Python-side env vars (`CHARACTER_LLM`, `OPENAI_API_KEY`, `WD14_MODEL`, etc.) are inherited by the subprocess.
+| `PYTHON_BIN` | `python3` | Python interpreter (use venv path) |
+| `WD14_TAGGER_SCRIPT` | *(auto)* | Path to `wd14_tagger.py` (enables WD14) |
+| `WD14_FRAMES` | `12` | Frames to sample per video |
+| `WD14_MAX_SIDE` | `1024` | Max dimension for extracted frames |
+| `CHARACTER_NAMES_FILE` | *(auto)* | Path to character names file |
+| `LLM_API_FILE` | *(auto)* | Path to two-line API credential file |
+| `LLM_MODEL` | `gpt-4o-mini` | Chat model for character extraction |
+| `LLM_B64_FILENAME` | `false` | Base64-encode filenames (avoids content filters) |
 
 ## API
 

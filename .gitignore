@@ -3,3 +3,7 @@
 data/
 classifyd
 dist/
+api
+character_names.txt
+.venv/
+__pycache__/

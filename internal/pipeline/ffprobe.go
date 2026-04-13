@@ -12,9 +12,12 @@ import (
 	"strings"
 )
 
-// FFProbeClassifier stores ffprobe JSON and derived metadata for each file.
+// FFProbeClassifier runs ffprobe for metadata and optionally identifies characters
+// via filename matching and LLM fallback.
 type FFProbeClassifier struct {
-	FFprobe string
+	FFprobe        string
+	CharacterNames []string   // loaded from character_names.txt
+	LLM            *LLMConfig // nil = no LLM fallback
 }
 
 func (f *FFProbeClassifier) bin() string {
@@ -42,16 +45,51 @@ func (f *FFProbeClassifier) ClassifyVideo(ctx context.Context, videoPath string)
 	stats, meta := summarizeProbe(&root)
 	metaTags := collectMetadataTags(&root)
 	tokens := buildFrequencyTokens(&root, stats, metaTags)
+
+	// Character identification: filename match → LLM fallback
+	basename := filepath.Base(path)
+	stem := strings.TrimSuffix(basename, filepath.Ext(basename))
+	var charTags []CharacterTag
+	var charSource string
+
+	if matched := MatchCharactersInFilename(stem, f.CharacterNames); len(matched) > 0 {
+		charSource = "filename"
+		for _, n := range matched {
+			charTags = append(charTags, CharacterTag{Name: n, Score: 1.0, Source: "filename"})
+		}
+	}
+	if len(charTags) == 0 && f.LLM != nil {
+		if names, err := llmExtractCharacters(ctx, f.LLM, basename, stem); err == nil && len(names) > 0 {
+			charSource = "llm"
+			for _, n := range names {
+				charTags = append(charTags, CharacterTag{Name: n, Score: 0.95, Source: "llm"})
+			}
+		}
+	}
+
+	charTagString := danbooru(charTags)
+	meta.CharacterTagString = charTagString
+	if charSource != "" {
+		meta.Tagger = "ffprobe+" + charSource
+	} else {
+		meta.Tagger = "ffprobe"
+	}
+
+	for _, ct := range charTags {
+		tokens = append(tokens, "character:"+strings.ToLower(strings.ReplaceAll(ct.Name, " ", "_")))
+	}
+
 	sort.Strings(tokens)
 	tokens = dedupeSorted(tokens)
 
 	wrap := map[string]any{
-		"video_path":         path,
-		"tagger":             "ffprobe-metadata",
-		"video_stats":        stats,
-		"metadata_tags":      metaTags,
-		"frequency_tokens":   tokens,
-		"probe":              json.RawMessage(out),
+		"video_path":       path,
+		"tagger":           meta.Tagger,
+		"video_stats":      stats,
+		"metadata_tags":    metaTags,
+		"character_tags":   charTags,
+		"frequency_tokens": tokens,
+		"probe":            json.RawMessage(out),
 	}
 	raw, err := json.Marshal(wrap)
 	if err != nil {
