@@ -1,7 +1,5 @@
-api-key
-api
 .env
-*.mp4
-*.mkv
-__pycache__/
-.venv/
+.DS_Store
+data/
+classifyd
+dist/
