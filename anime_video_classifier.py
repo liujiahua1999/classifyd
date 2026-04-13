@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Sample video frames with ffmpeg, run local WD14 (Danbooru-style) tagging via ONNX, write JSON.
+Sample video frames with ffmpeg, run local WD14 (Danbooru-style) tagging via ONNX.
+Write results as JSON array, JSON Lines (jsonl), or SQLite (--output-format / file extension).
 
 Outputs only tags with merged score above --min-score (default 0.9), with a summary block
 (tag strings, counts, dominant rating). Uses low per-frame inference thresholds by default
@@ -15,10 +16,12 @@ Requires: pip install -r requirements.txt  (dghs-imgutils, onnxruntime)
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import json
 import logging
 import os
+import sqlite3
 import re
 import subprocess
 import sys
@@ -164,6 +167,61 @@ def resolve_character_llm_config(
     return CharacterLLMConfig(api_key=api_key, base_url=base_url, model=model)
 
 
+class CharacterLLMRequestError(RuntimeError):
+    """OpenAI-compatible API error from chat/completions (parsed HTTP body when possible)."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        http_code: int | None = None,
+        api_error_code: str | None = None,
+        api_message: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.http_code = http_code
+        self.api_error_code = api_error_code
+        self.api_message = api_message
+
+
+def _parse_chat_completions_http_error(e: urllib.error.HTTPError) -> CharacterLLMRequestError:
+    body = e.read() if e.fp else b""
+    text = body.decode("utf-8", errors="replace")
+    api_code: str | None = None
+    api_msg: str | None = None
+    try:
+        j = json.loads(text)
+        err = j.get("error")
+        if isinstance(err, dict):
+            ac = err.get("code")
+            api_code = str(ac) if ac is not None else None
+            api_msg = err.get("message")
+            if isinstance(api_msg, str):
+                pass
+            else:
+                api_msg = None
+        elif isinstance(err, str):
+            api_msg = err
+    except json.JSONDecodeError:
+        pass
+    if api_msg is None:
+        api_msg = text.strip() or (e.reason or "")
+    short = f"LLM HTTP {e.code}: {(api_msg or '')[:500]}"
+    return CharacterLLMRequestError(
+        short,
+        http_code=e.code,
+        api_error_code=api_code,
+        api_message=api_msg,
+    )
+
+
+def _is_content_filter_error(e: CharacterLLMRequestError) -> bool:
+    if (e.api_error_code or "").lower() == "content_filter":
+        return True
+    msg = (e.api_message or "").lower()
+    return "content_filter" in msg or "content management policy" in msg
+
+
 def _strip_json_fence(text: str) -> str:
     t = text.strip()
     if t.startswith("```"):
@@ -181,18 +239,37 @@ def llm_extract_character_names_from_filename(
     stem: str,
     basename: str,
     cfg: CharacterLLMConfig,
+    encode_filename_b64: bool = False,
 ) -> tuple[list[str], str | None]:
     """
     Call OpenAI-compatible chat completions. Returns (names, raw_assistant_text_or_none).
+
+    encode_filename_b64: send the file label as Base64 so literal filenames are not in the
+    request body (helps with Azure / OpenAI content filters on explicit filenames).
     """
-    system = (
-        "You extract anime or game character names that the filename likely refers to. "
-        "Use Danbooru-style tags: lowercase words joined by underscores, no spaces. "
-        "Reply with ONLY a JSON object, no markdown: "
-        '{"characters":["name_one","name_two"]}. '
-        "Use an empty array if the filename has no recognizable character names."
-    )
-    user = f"File name (no path): {basename}\nStem only: {stem}"
+    if encode_filename_b64:
+        system = (
+            "You extract anime or game character names that a file label likely refers to. "
+            "The user message is UTF-8 text, Base64-encoded on a single line after the label. "
+            "Decode the Base64 first, then read the decoded lines "
+            '"File name (no path): ..." and "Stem only: ...". '
+            "Use Danbooru-style tags: lowercase words joined by underscores, no spaces. "
+            "Reply with ONLY a JSON object, no markdown: "
+            '{"characters":["name_one","name_two"]}. '
+            "Use an empty array if there are no recognizable character names."
+        )
+        plain = f"File name (no path): {basename}\nStem only: {stem}"
+        b64 = base64.b64encode(plain.encode("utf-8")).decode("ascii")
+        user = f"Encoded file label (Base64, UTF-8):\n{b64}"
+    else:
+        system = (
+            "You extract anime or game character names that the filename likely refers to. "
+            "Use Danbooru-style tags: lowercase words joined by underscores, no spaces. "
+            "Reply with ONLY a JSON object, no markdown: "
+            '{"characters":["name_one","name_two"]}. '
+            "Use an empty array if the filename has no recognizable character names."
+        )
+        user = f"File name (no path): {basename}\nStem only: {stem}"
     url = cfg.base_url.rstrip("/") + "/chat/completions"
     payload = {
         "model": cfg.model,
@@ -211,8 +288,7 @@ def llm_extract_character_names_from_filename(
         with urllib.request.urlopen(req, timeout=cfg.timeout_sec) as resp:
             raw = json.loads(resp.read().decode("utf-8", errors="replace"))
     except urllib.error.HTTPError as e:
-        err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
-        raise RuntimeError(f"LLM HTTP {e.code}: {err_body or e.reason}") from e
+        raise _parse_chat_completions_http_error(e) from e
     except urllib.error.URLError as e:
         raise RuntimeError(f"LLM request failed: {e}") from e
 
@@ -252,6 +328,7 @@ def apply_llm_character_fallback(
     video: Path,
     cfg: CharacterLLMConfig | None,
     use_lock: bool,
+    encode_filename_b64: bool = False,
 ) -> dict[str, Any]:
     """
     If character_tags is still empty, ask a small LLM (OpenAI-compatible API) to read the filename.
@@ -270,14 +347,31 @@ def apply_llm_character_fallback(
                 stem=video.stem,
                 basename=video.name,
                 cfg=cfg,
+                encode_filename_b64=encode_filename_b64,
             )
+        except CharacterLLMRequestError as e:
+            if _is_content_filter_error(e):
+                log.warning(
+                    "Character LLM blocked by content filter (often explicit words in the filename). "
+                    "Retry with --character-llm-b64-filename, or adjust Azure OpenAI content filtering "
+                    "for your deployment."
+                )
+                summary["character_llm_content_filter"] = True
+                summary["character_llm_error"] = (
+                    "content_filter: upstream blocked the request (prompt/filename)."
+                )
+            else:
+                log.warning("Character LLM fallback failed: %s", e)
+                summary["character_llm_error"] = (e.api_message or str(e))[:2000]
+            return wd
         except Exception as e:
             log.warning("Character LLM fallback failed: %s", e)
-            summary["character_llm_error"] = str(e)
+            summary["character_llm_error"] = str(e)[:2000]
             return wd
     if raw_content is not None:
         summary["character_llm_raw_reply"] = raw_content[:2000]
     summary["character_llm_model"] = cfg.model
+    summary["character_llm_filename_encoding"] = "base64" if encode_filename_b64 else "plain"
     if not names:
         summary["character_llm_names"] = []
         return wd
@@ -555,7 +649,6 @@ def collect_videos(
     than the previous 12× rglob approach.
     """
     out: set[Path] = set()
-    scanned = 0
 
     def consider_file(f: Path) -> None:
         nonlocal scanned
@@ -579,6 +672,8 @@ def collect_videos(
             pass
 
     for raw in paths:
+        # Per input path so a file listed after a large directory does not reuse that dir's count.
+        scanned = 0
         p = raw.expanduser().resolve()
         if not p.exists():
             raise FileNotFoundError(p)
@@ -587,7 +682,6 @@ def collect_videos(
             n_videos_before = len(out)
             if verbose_scan:
                 log.info("Scanning for videos under %s ...", p)
-            scanned = 0
             for f in p.rglob("*"):
                 consider_file(f)
             if verbose_scan:
@@ -605,6 +699,78 @@ def collect_videos(
     return sorted(out)
 
 
+def infer_output_format(path: Path, explicit: str) -> str:
+    """
+    explicit: auto | json | jsonl | sqlite
+    """
+    e = (explicit or "auto").strip().lower()
+    if e != "auto":
+        return e
+    suf = path.suffix.lower()
+    if suf == ".jsonl":
+        return "jsonl"
+    if suf in (".db", ".sqlite", ".sqlite3"):
+        return "sqlite"
+    return "json"
+
+
+class JsonlResultSink:
+    """One JSON object per line, flushed after each row so output is visible during long runs."""
+
+    def __init__(self, path: Path, lock: threading.Lock | None = None) -> None:
+        self._fp = path.open("w", encoding="utf-8")
+        self._lock = lock
+
+    def write_row(self, d: dict[str, Any]) -> None:
+        line = json.dumps(d, ensure_ascii=False) + "\n"
+        if self._lock is not None:
+            with self._lock:
+                self._fp.write(line)
+                self._fp.flush()
+        else:
+            self._fp.write(line)
+            self._fp.flush()
+
+    def close(self) -> None:
+        self._fp.close()
+
+
+class SqliteResultSink:
+    """Single table with full row JSON; each insert is committed so readers can see rows while the job runs."""
+
+    def __init__(self, path: Path, lock: threading.Lock | None = None) -> None:
+        self._conn = sqlite3.connect(str(path))
+        self._lock = lock
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute(
+            """CREATE TABLE IF NOT EXISTS video_tags (
+                video_path TEXT PRIMARY KEY NOT NULL,
+                payload TEXT NOT NULL
+            )"""
+        )
+        self._conn.commit()
+
+    def write_row(self, d: dict[str, Any]) -> None:
+        payload = json.dumps(d, ensure_ascii=False)
+        vp = str(d.get("video_path", ""))
+
+        def ins() -> None:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO video_tags (video_path, payload) VALUES (?, ?)",
+                (vp, payload),
+            )
+            self._conn.commit()
+
+        if self._lock is not None:
+            with self._lock:
+                ins()
+        else:
+            ins()
+
+    def close(self) -> None:
+        self._conn.close()
+
+
 def process_one(
     video: Path,
     *,
@@ -617,6 +783,7 @@ def process_one(
     character_names: list[str],
     character_llm: CharacterLLMConfig | None,
     character_llm_use_lock: bool,
+    character_llm_b64_filename: bool,
     dry_run: bool,
     wd14_lock: bool,
 ) -> Row:
@@ -671,6 +838,7 @@ def process_one(
             video=video,
             cfg=character_llm,
             use_lock=character_llm_use_lock,
+            encode_filename_b64=character_llm_b64_filename,
         )
         return Row(
             video_path=str(video.resolve()),
@@ -715,7 +883,24 @@ def main() -> int:
     )
     ap.add_argument("inputs", nargs="*", type=Path, help="Videos and/or directories")
     ap.add_argument("-d", "--dir", action="append", type=Path, dest="dirs")
-    ap.add_argument("-o", "--output", type=Path, help="JSON array output file")
+    ap.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        help="Output file (format: --output-format, or from extension: .json / .jsonl / .db)",
+    )
+    ap.add_argument(
+        "--output-format",
+        choices=("auto", "json", "jsonl", "sqlite"),
+        default=os.environ.get("OUTPUT_FORMAT", "auto"),
+        help=(
+            "auto: infer from path (.jsonl -> jsonl, .db/.sqlite -> sqlite, else json). "
+            "json: one JSON array at end (high memory). "
+            "jsonl: one object per line, written and flushed after each video. "
+            "sqlite: one row committed after each video (WAL; readable while running). "
+            "Env: OUTPUT_FORMAT."
+        ),
+    )
     ap.add_argument(
         "--frames",
         type=int,
@@ -791,6 +976,15 @@ def main() -> int:
         help="Chat model id for filename parsing (default gpt-4o-mini or CHARACTER_LLM_MODEL).",
     )
     ap.add_argument(
+        "--character-llm-b64-filename",
+        action="store_true",
+        help=(
+            "Send the filename/stem as Base64 in the user message so the API body does not "
+            "contain literal file names (often avoids Azure OpenAI content_filter on explicit names). "
+            "Env: CHARACTER_LLM_B64_FILENAME=1."
+        ),
+    )
+    ap.add_argument(
         "--dry-run",
         action="store_true",
         help="ffprobe + frame extract only; no WD14 (no model download)",
@@ -813,7 +1007,9 @@ def main() -> int:
 
     if args.output is None and len(args.inputs) >= 2:
         last = args.inputs[-1]
-        if str(last).lower().endswith(".json"):
+        if str(last).lower().endswith(
+            (".json", ".jsonl", ".db", ".sqlite", ".sqlite3")
+        ):
             args.output = last
             args.inputs = list(args.inputs[:-1])
 
@@ -872,17 +1068,41 @@ def main() -> int:
         api_file=args.character_llm_api_file,
         model=args.character_llm_model,
     )
+    character_llm_b64 = args.character_llm_b64_filename or os.environ.get(
+        "CHARACTER_LLM_B64_FILENAME", ""
+    ).lower() in ("1", "true", "yes", "on")
+
     if llm_on and character_llm_cfg:
         log.info(
-            "Character LLM fallback enabled (model=%s, base=%s)",
+            "Character LLM fallback enabled (model=%s, base=%s, filename_encoding=%s)",
             character_llm_cfg.model,
             character_llm_cfg.base_url,
+            "base64" if character_llm_b64 else "plain",
         )
 
     workers = max(1, args.workers)
     use_wd14_lock = workers > 1 and not args.dry_run
     use_llm_lock = workers > 1
-    rows: list[dict[str, Any]] = []
+
+    out_path = args.output
+    output_fmt = "json"
+    row_sink: JsonlResultSink | SqliteResultSink | None = None
+    accumulate_json_array = False
+    if out_path is not None:
+        output_fmt = infer_output_format(out_path, args.output_format)
+        if output_fmt == "json":
+            accumulate_json_array = True
+        elif output_fmt == "jsonl":
+            row_sink = JsonlResultSink(
+                out_path, threading.Lock() if workers > 1 else None
+            )
+        else:
+            row_sink = SqliteResultSink(
+                out_path, threading.Lock() if workers > 1 else None
+            )
+        log.info("Writing results as %s to %s", output_fmt, out_path)
+
+    rows: list[dict[str, Any]] = [] if accumulate_json_array else []
 
     def work(vp: Path) -> dict[str, Any]:
         log.info("%s", vp)
@@ -897,31 +1117,43 @@ def main() -> int:
             character_names=character_names,
             character_llm=character_llm_cfg,
             character_llm_use_lock=use_llm_lock,
+            character_llm_b64_filename=character_llm_b64,
             dry_run=args.dry_run,
             wd14_lock=use_wd14_lock,
         )
         d = r.to_json()
         if not args.quiet:
             print(json.dumps(d, indent=2, ensure_ascii=False))
+        if row_sink is not None:
+            row_sink.write_row(d)
         return d
 
-    if workers == 1:
-        for v in videos:
-            rows.append(work(v))
-    else:
-        slots: list[dict[str, Any] | None] = [None] * len(videos)
-        with ThreadPoolExecutor(max_workers=min(workers, len(videos))) as ex:
-            futs = {ex.submit(work, videos[i]): i for i in range(len(videos))}
-            for fut in as_completed(futs):
-                i = futs[fut]
-                slots[i] = fut.result()
-        rows = [s for s in slots if s is not None]
+    try:
+        if workers == 1:
+            for v in videos:
+                d = work(v)
+                if accumulate_json_array:
+                    rows.append(d)
+        else:
+            slots: list[dict[str, Any] | None] = [None] * len(videos)
+            with ThreadPoolExecutor(max_workers=min(workers, len(videos))) as ex:
+                futs = {ex.submit(work, videos[i]): i for i in range(len(videos))}
+                for fut in as_completed(futs):
+                    i = futs[fut]
+                    slots[i] = fut.result()
+            if accumulate_json_array:
+                rows = [s for s in slots if s is not None]
 
-    if args.output:
-        args.output.write_text(
-            json.dumps(rows, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
-        log.info("Wrote %s", args.output)
+        if out_path is not None and output_fmt == "json":
+            out_path.write_text(
+                json.dumps(rows, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+            log.info("Wrote %s (%d rows)", out_path, len(rows))
+        elif out_path is not None:
+            log.info("Wrote %s (%d rows as %s)", out_path, len(videos), output_fmt)
+    finally:
+        if row_sink is not None:
+            row_sink.close()
 
     return 0
 
