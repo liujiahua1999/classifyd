@@ -14,14 +14,19 @@ type ClassifyResult struct {
 	Meta *ProbeMeta
 }
 
-// ProbeMeta is persisted on the job row for SQL aggregates (codecs, duration, resolution).
+// ProbeMeta is persisted on the job row for SQL aggregates.
 type ProbeMeta struct {
-	DurationSec *float64
-	VideoCodec  string
-	AudioCodec  string
-	Width       *int
-	Height      *int
-	Container   string
+	DurationSec        *float64
+	VideoCodec         string
+	AudioCodec         string
+	Width              *int
+	Height             *int
+	Container          string
+	Tagger             string
+	DominantRating     string
+	GeneralTagString   string
+	CharacterTagString string
+	FramesSampled      int
 }
 
 // VideoClassifier produces one result per video path (stored on the job).

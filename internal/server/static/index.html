@@ -13,26 +13,25 @@
   --green:#22c55e;--green-dim:#14532d;
   --amber:#f59e0b;--amber-dim:#78350f;
   --red:#ef4444;--red-dim:#7f1d1d;
-  --purple:#a78bfa;
+  --purple:#a78bfa;--purple-dim:#312e81;
+  --pink:#ec4899;--pink-dim:#831843;
+  --cyan:#22d3ee;--cyan-dim:#164e63;
   --radius:10px;--radius-sm:6px;
 }
 html{font-size:14px}
 body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-
-/* layout */
-.shell{max-width:1100px;margin:0 auto;padding:1.25rem 1.5rem}
+.shell{max-width:1200px;margin:0 auto;padding:1.25rem 1.5rem}
 header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem}
 header h1{font-size:1.35rem;font-weight:700;letter-spacing:-.02em}
-header .badge{font-size:.65rem;padding:.15rem .45rem;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-weight:600;text-transform:uppercase}
+header .badge{font-size:.65rem;padding:.15rem .45rem;border-radius:4px;background:var(--purple-dim);color:var(--purple);font-weight:600;text-transform:uppercase}
 header .spacer{flex:1}
 #refresh-dot{width:8px;height:8px;border-radius:50%;background:var(--green);transition:opacity .3s;opacity:.6}
 #refresh-dot.active{opacity:1}
 
-/* stat cards */
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.65rem;margin-bottom:1.25rem}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1rem;position:relative;overflow:hidden}
-.card .label{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:.3rem}
-.card .value{font-size:1.6rem;font-weight:700;line-height:1.1}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.55rem;margin-bottom:1.15rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem .85rem;position:relative;overflow:hidden}
+.card .label{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:.25rem}
+.card .value{font-size:1.4rem;font-weight:700;line-height:1.1}
 .card .bar{position:absolute;bottom:0;left:0;height:3px;border-radius:0 2px 0 0;transition:width .5s ease}
 .card.pending  .value{color:var(--amber)}.card.pending  .bar{background:var(--amber)}
 .card.running  .value{color:var(--blue)}.card.running  .bar{background:var(--blue)}
@@ -40,83 +39,83 @@ header .spacer{flex:1}
 .card.failed   .value{color:var(--red)}.card.failed   .bar{background:var(--red)}
 .card.total    .value{color:var(--text)}.card.total    .bar{background:var(--dim)}
 
-/* progress */
-.progress-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.15rem;margin-bottom:1.25rem}
-.progress-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem}
-.progress-header h2{font-size:.85rem;font-weight:600}
-.progress-header .pct{font-size:1.1rem;font-weight:700;color:var(--green)}
-.progress-track{height:10px;background:var(--surface2);border-radius:99px;overflow:hidden;position:relative}
-.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--green));transition:width .6s ease;min-width:0}
-.progress-meta{display:flex;gap:1.5rem;margin-top:.55rem;font-size:.72rem;color:var(--muted)}
+.progress-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1rem;margin-bottom:1.15rem}
+.progress-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.4rem}
+.progress-header h2{font-size:.82rem;font-weight:600}
+.progress-header .pct{font-size:1rem;font-weight:700;color:var(--green)}
+.progress-track{height:8px;background:var(--surface2);border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--green));transition:width .6s ease}
+.progress-meta{display:flex;gap:1.5rem;margin-top:.45rem;font-size:.7rem;color:var(--muted)}
 .progress-meta span b{color:var(--text);font-weight:600}
 
-/* sections */
-.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.15rem;margin-bottom:1.25rem}
-.section-head{display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem;flex-wrap:wrap}
-.section-head h2{font-size:.85rem;font-weight:600;white-space:nowrap}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;margin-bottom:1.15rem}
+.section-head{display:flex;align-items:center;gap:.6rem;margin-bottom:.65rem;flex-wrap:wrap}
+.section-head h2{font-size:.82rem;font-weight:600;white-space:nowrap}
 .section-head .right{margin-left:auto;display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
 
-/* scan form */
-.scan-row{display:flex;gap:.45rem;flex-wrap:wrap;align-items:stretch}
-.scan-row input{flex:1;min-width:200px;padding:.5rem .65rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.82rem;outline:none;transition:border-color .2s}
+.scan-row{display:flex;gap:.4rem;flex-wrap:wrap;align-items:stretch}
+.scan-row input{flex:1;min-width:200px;padding:.45rem .6rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.8rem;outline:none;transition:border-color .2s}
 .scan-row input:focus{border-color:var(--blue)}
-.scan-msg{font-size:.72rem;color:var(--muted);margin-top:.4rem;min-height:1rem}
+.scan-msg{font-size:.7rem;color:var(--muted);margin-top:.35rem;min-height:1rem}
 
-/* buttons */
-.btn{display:inline-flex;align-items:center;gap:.3rem;padding:.42rem .75rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;gap:.3rem;padding:.4rem .7rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.7rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
 .btn:hover{background:var(--border);border-color:var(--muted)}
 .btn:active{transform:scale(.97)}
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn.primary:hover{background:#2563eb;border-color:#2563eb}
+.btn.primary:hover{background:#2563eb}
 .btn.danger{color:var(--red)}.btn.danger:hover{background:var(--red-dim);border-color:var(--red)}
 .btn.warn{color:var(--amber)}.btn.warn:hover{background:var(--amber-dim);border-color:var(--amber)}
 .btn:disabled{opacity:.4;pointer-events:none}
 
-/* filter pills */
-.filters{display:flex;gap:.3rem}
-.filters .f{padding:.3rem .6rem;border-radius:var(--radius-sm);font-size:.7rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s}
+.filters{display:flex;gap:.25rem}
+.filters .f{padding:.28rem .55rem;border-radius:var(--radius-sm);font-size:.68rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s}
 .filters .f:hover{color:var(--text);border-color:var(--muted)}
 .filters .f.active{background:var(--blue-dim);border-color:var(--blue);color:var(--blue)}
 
-/* job table */
-.job-table{width:100%;border-collapse:collapse;font-size:.78rem}
-.job-table th{text-align:left;padding:.45rem .5rem;color:var(--muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--border)}
-.job-table td{padding:.45rem .5rem;border-bottom:1px solid var(--border);vertical-align:top}
+.job-table{width:100%;border-collapse:collapse;font-size:.76rem}
+.job-table th{text-align:left;padding:.4rem .45rem;color:var(--muted);font-weight:600;font-size:.66rem;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--border)}
+.job-table td{padding:.4rem .45rem;border-bottom:1px solid var(--border);vertical-align:top}
 .job-table tr:last-child td{border-bottom:none}
 .job-table tr:hover td{background:var(--surface2)}
-.path-cell{word-break:break-all;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.7rem;max-width:450px;color:var(--muted)}
+.path-cell{word-break:break-all;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.68rem;max-width:360px;color:var(--muted)}
 .path-cell .filename{color:var(--text);font-weight:500}
-.st{font-weight:700;font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;padding:.15rem .4rem;border-radius:4px;display:inline-block}
+.st{font-weight:700;font-size:.66rem;text-transform:uppercase;letter-spacing:.03em;padding:.12rem .35rem;border-radius:4px;display:inline-block}
 .st-pending{background:var(--amber-dim);color:var(--amber)}
 .st-processing{background:var(--blue-dim);color:var(--blue)}
 .st-done{background:var(--green-dim);color:var(--green)}
 .st-failed{background:var(--red-dim);color:var(--red)}
-.err-cell{color:var(--red);font-size:.7rem;max-width:250px;word-break:break-word}
-.time-cell{font-size:.68rem;color:var(--muted);white-space:nowrap}
+.err-cell{color:var(--red);font-size:.68rem;max-width:200px;word-break:break-word}
+.time-cell{font-size:.66rem;color:var(--muted);white-space:nowrap}
 .actions-cell{white-space:nowrap}
-.actions-cell .btn{padding:.2rem .45rem;font-size:.65rem}
+.actions-cell .btn{padding:.18rem .4rem;font-size:.63rem}
 
-/* pagination */
-.pager{display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.7rem 0 .2rem}
-.pager .btn{min-width:60px;justify-content:center}
-.pager .info{font-size:.7rem;color:var(--muted)}
+.tag-cell{font-size:.68rem;max-width:320px}
+.char-tag{display:inline-block;padding:.1rem .35rem;border-radius:4px;background:var(--purple-dim);color:var(--purple);font-weight:600;margin:.1rem .15rem .1rem 0;font-size:.65rem}
+.gen-tag{display:inline-block;padding:.08rem .3rem;border-radius:3px;background:var(--surface2);color:var(--muted);margin:.1rem .1rem .1rem 0;font-size:.62rem}
+.rating-tag{display:inline-block;padding:.1rem .35rem;border-radius:4px;font-weight:600;font-size:.63rem;margin:.1rem .15rem .1rem 0}
+.rating-general{background:var(--green-dim);color:var(--green)}
+.rating-sensitive{background:var(--amber-dim);color:var(--amber)}
+.rating-questionable{background:var(--amber-dim);color:var(--amber)}
+.rating-explicit{background:var(--red-dim);color:var(--red)}
+.probe-line{color:var(--dim);font-size:.62rem;margin-top:.2rem;font-family:ui-monospace,monospace}
 
-/* empty state */
-.empty{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.82rem}
-
-/* scrollable table wrapper */
+.pager{display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.6rem 0 .2rem}
+.pager .btn{min-width:56px;justify-content:center}
+.pager .info{font-size:.68rem;color:var(--muted)}
+.empty{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.8rem}
 .table-wrap{overflow-x:auto}
-.probe-line{color:var(--dim);font-size:.65rem;margin-top:.2rem;font-family:ui-monospace,monospace}
+
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}}
-.bucket-list{font-size:.72rem;color:var(--muted);line-height:1.45}
-.bucket-list div{display:flex;justify-content:space-between;gap:.5rem;border-bottom:1px solid var(--border);padding:.2rem 0}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;align-items:start}
+@media(max-width:900px){.grid3{grid-template-columns:1fr}}
+.bucket-list{font-size:.7rem;color:var(--muted);line-height:1.4}
+.bucket-list div{display:flex;justify-content:space-between;gap:.4rem;border-bottom:1px solid var(--border);padding:.18rem 0}
 .bucket-list span:last-child{color:var(--text);font-weight:600}
-.analytics-sub{font-size:.72rem;color:var(--muted);margin:0 0 .75rem;line-height:1.45}
-#tagPrefix{max-width:160px;padding:.35rem .5rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.72rem}
+.analytics-sub{font-size:.7rem;color:var(--muted);margin:0 0 .65rem;line-height:1.4}
+#tagPrefix{max-width:140px;padding:.32rem .45rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.7rem}
 
-/* toast */
-.toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.65rem 1rem;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:.78rem;z-index:999;opacity:0;transform:translateY(10px);transition:all .25s ease;pointer-events:none}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.6rem .9rem;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:.76rem;z-index:999;opacity:0;transform:translateY(10px);transition:all .25s ease;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0);pointer-events:auto}
 .toast.error{border-color:var(--red);color:var(--red)}
 
@@ -131,25 +130,22 @@ header .spacer{flex:1}
 <div class="shell">
   <header>
     <h1>classifyd</h1>
-    <span class="badge">ffprobe</span>
+    <span class="badge" id="pipelineBadge">ffprobe</span>
     <div class="spacer"></div>
     <div id="refresh-dot" title="Auto-refreshing every 2s"></div>
   </header>
 
-  <!-- Stats -->
   <div class="cards" id="cards"></div>
 
-  <!-- Progress -->
   <div class="progress-wrap">
     <div class="progress-header">
-      <h2>Overall Progress</h2>
+      <h2>Progress</h2>
       <span class="pct" id="pct">0%</span>
     </div>
     <div class="progress-track"><div class="progress-fill" id="bar" style="width:0%"></div></div>
     <div class="progress-meta" id="meta"></div>
   </div>
 
-  <!-- Scan -->
   <div class="section">
     <div class="section-head"><h2>Scan Library</h2></div>
     <div class="scan-row">
@@ -159,27 +155,32 @@ header .spacer{flex:1}
     <div class="scan-msg" id="scanMsg"></div>
   </div>
 
-  <!-- Analytics -->
+  <!-- Analytics: characters, ratings, codecs -->
   <div class="section">
     <div class="section-head">
-      <h2>Tags &amp; ffprobe stats</h2>
+      <h2>Analytics</h2>
       <div class="right">
-        <input type="text" id="tagPrefix" placeholder="prefix filter" title="Filter token rows"/>
+        <input type="text" id="tagPrefix" placeholder="prefix (e.g. character:)" title="Filter tag tokens"/>
         <button type="button" class="btn" id="reloadAnalyticsBtn">Refresh</button>
-        <button type="button" class="btn" id="rebuildTagsBtn" title="Rebuild job_tags from stored JSON (after upgrade)">Rebuild index</button>
+        <button type="button" class="btn" id="rebuildTagsBtn" title="Rebuild job_tags from stored JSON">Rebuild index</button>
       </div>
     </div>
-    <p class="analytics-sub">Tokens combine codecs, containers, resolution, and <b>format/stream metadata</b> from ffprobe. A high <b>% of done jobs</b> usually means boilerplate you can ignore for downstream tagging; rare rows are more distinctive.</p>
-    <div class="grid2">
+    <div class="grid3">
       <div>
-        <h3 style="font-size:.75rem;color:var(--muted);margin:0 0 .35rem;">Finished jobs — codecs &amp; containers</h3>
+        <h3 style="font-size:.72rem;color:var(--purple);margin:0 0 .3rem">Characters</h3>
+        <div id="charAgg" class="bucket-list"></div>
+      </div>
+      <div>
+        <h3 style="font-size:.72rem;color:var(--amber);margin:0 0 .3rem">Ratings</h3>
+        <div id="ratingAgg" class="bucket-list"></div>
+        <h3 style="font-size:.72rem;color:var(--muted);margin:.6rem 0 .3rem">Codecs &amp; Containers</h3>
         <div id="ffprobeAgg" class="bucket-list"></div>
       </div>
       <div>
-        <h3 style="font-size:.75rem;color:var(--muted);margin:0 0 .35rem;">Token frequency (cross-job)</h3>
+        <h3 style="font-size:.72rem;color:var(--muted);margin:0 0 .3rem">Tag frequency</h3>
         <div class="table-wrap">
           <table class="job-table">
-            <thead><tr><th>Token</th><th>Count</th><th>% done</th><th>Note</th></tr></thead>
+            <thead><tr><th>Token</th><th>Count</th><th>%</th><th>Note</th></tr></thead>
             <tbody id="tagFreqBody"></tbody>
           </table>
         </div>
@@ -193,13 +194,13 @@ header .spacer{flex:1}
       <h2>Jobs</h2>
       <div class="filters" id="filters"></div>
       <div class="right">
-        <button class="btn warn"   id="retryAllBtn" title="Re-queue all failed jobs">Retry Failed</button>
-        <button class="btn danger" id="purgeBtn"     title="Delete all completed jobs from the DB">Purge Done</button>
+        <button class="btn warn" id="retryAllBtn">Retry Failed</button>
+        <button class="btn danger" id="purgeBtn">Purge Done</button>
       </div>
     </div>
     <div class="table-wrap">
       <table class="job-table">
-        <thead><tr><th>Status</th><th>Path / ffprobe</th><th>Time</th><th>Error</th><th></th></tr></thead>
+        <thead><tr><th>Status</th><th>Path</th><th>Characters / Tags</th><th>Rating</th><th>Time</th><th>Error</th><th></th></tr></thead>
         <tbody id="jobs"></tbody>
       </table>
     </div>
@@ -207,49 +208,42 @@ header .spacer{flex:1}
     <div class="pager" id="pager"></div>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script>
 const $ = s => document.getElementById(s);
 const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
 
-let filter = 'all';
-let page = 0;
+let filter = 'all', page = 0;
 const perPage = 50;
-let stats = null;
-let doneHistory = [];
-let ratePerSec = 0;
+let stats = null, doneHistory = [], ratePerSec = 0;
 
 const FILTERS = [
-  { key: 'all',        label: 'All' },
-  { key: 'pending',    label: 'Pending' },
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
   { key: 'processing', label: 'Running' },
-  { key: 'done',       label: 'Done' },
-  { key: 'failed',     label: 'Failed' },
+  { key: 'done', label: 'Done' },
+  { key: 'failed', label: 'Failed' },
 ];
-
 function initFilters() {
   $('filters').innerHTML = FILTERS.map(f =>
-    `<button class="f${f.key === filter ? ' active' : ''}" data-f="${f.key}">${f.label}</button>`
+    `<button class="f${f.key===filter?' active':''}" data-f="${f.key}">${f.label}</button>`
   ).join('');
   $('filters').querySelectorAll('.f').forEach(el => {
     el.onclick = () => { filter = el.dataset.f; page = 0; renderFilters(); loadJobs(); };
   });
 }
 function renderFilters() {
-  $('filters').querySelectorAll('.f').forEach(el => {
-    el.classList.toggle('active', el.dataset.f === filter);
-  });
+  $('filters').querySelectorAll('.f').forEach(el => el.classList.toggle('active', el.dataset.f === filter));
 }
 
 function renderCards(st) {
   const items = [
-    { label: 'Total',      value: st.total,      cls: 'total' },
-    { label: 'Pending',    value: st.pending,     cls: 'pending' },
-    { label: 'Processing', value: st.processing,  cls: 'running' },
-    { label: 'Done',       value: st.done,        cls: 'done' },
-    { label: 'Failed',     value: st.failed,      cls: 'failed' },
+    { label: 'Total', value: st.total, cls: 'total' },
+    { label: 'Pending', value: st.pending, cls: 'pending' },
+    { label: 'Processing', value: st.processing, cls: 'running' },
+    { label: 'Done', value: st.done, cls: 'done' },
+    { label: 'Failed', value: st.failed, cls: 'failed' },
   ];
   const total = Math.max(st.total, 1);
   $('cards').innerHTML = items.map(i => {
@@ -261,71 +255,58 @@ function renderCards(st) {
 function renderProgress(st) {
   const total = st.total || 0;
   const finished = (st.done || 0) + (st.failed || 0);
-  const pct = total > 0 ? ((finished / total) * 100) : 0;
+  const pct = total > 0 ? (finished / total) * 100 : 0;
   $('pct').textContent = pct.toFixed(1) + '%';
   $('bar').style.width = pct.toFixed(2) + '%';
-
   const now = Date.now();
   doneHistory.push({ t: now, done: st.done || 0 });
   while (doneHistory.length > 1 && now - doneHistory[0].t > 60000) doneHistory.shift();
-
   let etaStr = '--';
   if (doneHistory.length >= 2) {
     const first = doneHistory[0], last = doneHistory[doneHistory.length - 1];
-    const dt = (last.t - first.t) / 1000;
-    const dd = last.done - first.done;
-    if (dt > 0 && dd > 0) {
-      ratePerSec = dd / dt;
-      const remaining = (st.pending || 0) + (st.processing || 0);
-      const etaSec = remaining / ratePerSec;
-      etaStr = fmtDuration(etaSec);
-    }
+    const dt = (last.t - first.t) / 1000, dd = last.done - first.done;
+    if (dt > 0 && dd > 0) { ratePerSec = dd / dt; etaStr = fmtDur((((st.pending||0) + (st.processing||0)) / ratePerSec)); }
   }
-  const rateStr = ratePerSec > 0 ? ratePerSec.toFixed(2) + '/s' : '--';
   $('meta').innerHTML = `
-    <span><b>${finished.toLocaleString()}</b> / ${total.toLocaleString()} finished</span>
-    <span>Rate: <b>${rateStr}</b></span>
-    <span>ETA: <b>${etaStr}</b></span>
-  `;
+    <span><b>${finished.toLocaleString()}</b> / ${total.toLocaleString()}</span>
+    <span>Rate: <b>${ratePerSec > 0 ? ratePerSec.toFixed(2) + '/s' : '--'}</b></span>
+    <span>ETA: <b>${etaStr}</b></span>`;
 }
 
-function fmtDuration(sec) {
-  if (!isFinite(sec) || sec < 0) return '--';
-  if (sec < 60) return Math.round(sec) + 's';
-  if (sec < 3600) return Math.round(sec / 60) + 'm ' + Math.round(sec % 60) + 's';
-  const h = Math.floor(sec / 3600);
-  const m = Math.round((sec % 3600) / 60);
-  return h + 'h ' + m + 'm';
+function fmtDur(s) {
+  if (!isFinite(s) || s < 0) return '--';
+  if (s < 60) return Math.round(s) + 's';
+  if (s < 3600) return Math.round(s/60) + 'm ' + Math.round(s%60) + 's';
+  return Math.floor(s/3600) + 'h ' + Math.round((s%3600)/60) + 'm';
 }
-
 function fmtPath(p) {
   if (!p) return '';
-  const parts = p.replace(/\\/g, '/').split('/');
-  const name = parts.pop() || '';
-  const dir = parts.join('/');
-  return `<span>${esc(dir)}/</span><span class="filename">${esc(name)}</span>`;
+  const parts = p.replace(/\\/g, '/').split('/'), name = parts.pop() || '';
+  return `<span>${esc(parts.join('/'))}/</span><span class="filename">${esc(name)}</span>`;
 }
-
 function fmtTime(t) {
   if (!t) return '';
-  try {
-    const d = new Date(t);
+  try { const d = new Date(t), diff = (new Date() - d) / 1000;
     if (isNaN(d)) return '';
-    const now = new Date();
-    const diff = (now - d) / 1000;
-    if (diff < 60) return Math.round(diff) + 's ago';
-    if (diff < 3600) return Math.round(diff / 60) + 'm ago';
-    if (diff < 86400) return Math.round(diff / 3600) + 'h ago';
+    if (diff < 60) return Math.round(diff) + 's';
+    if (diff < 3600) return Math.round(diff/60) + 'm';
+    if (diff < 86400) return Math.round(diff/3600) + 'h';
     return d.toLocaleDateString();
   } catch { return ''; }
+}
+function ratingCls(r) {
+  r = (r||'').toLowerCase();
+  if (r === 'general') return 'rating-general';
+  if (r === 'sensitive') return 'rating-sensitive';
+  if (r === 'questionable') return 'rating-questionable';
+  if (r === 'explicit') return 'rating-explicit';
+  return '';
 }
 
 async function loadStats() {
   try {
-    const r = await fetch('/api/v1/stats');
-    stats = await r.json();
-    renderCards(stats);
-    renderProgress(stats);
+    const r = await fetch('/api/v1/stats'); stats = await r.json();
+    renderCards(stats); renderProgress(stats);
     $('retryAllBtn').disabled = !stats.failed;
     $('purgeBtn').disabled = !stats.done;
   } catch {}
@@ -335,175 +316,139 @@ async function loadJobs() {
   try {
     const params = new URLSearchParams({ limit: perPage, offset: page * perPage });
     if (filter !== 'all') params.set('status', filter);
-    const r = await fetch('/api/v1/jobs?' + params);
-    const jobs = await r.json();
-    const tb = $('jobs');
-    const empty = $('emptyJobs');
-    if (!jobs || jobs.length === 0) {
-      tb.innerHTML = '';
-      empty.style.display = page === 0 ? 'block' : 'none';
-    } else {
+    const jobs = await fetch('/api/v1/jobs?' + params).then(r => r.json());
+    const tb = $('jobs'), empty = $('emptyJobs');
+    if (!jobs || !jobs.length) { tb.innerHTML = ''; empty.style.display = page === 0 ? 'block' : 'none'; }
+    else {
       empty.style.display = 'none';
       tb.innerHTML = jobs.map(j => {
-        const st = (j.status || '').toLowerCase();
+        const st = (j.status||'').toLowerCase();
         const ts = j.finished_at || j.started_at || j.created_at;
         const canRetry = st === 'failed';
         const pp = [];
         if (j.video_codec) pp.push(esc(j.video_codec));
         if (j.container_fmt) pp.push(esc(j.container_fmt));
         if (j.width && j.height) pp.push(`${j.width}\u00d7${j.height}`);
-        if (j.duration_sec != null && !isNaN(Number(j.duration_sec))) pp.push(Math.round(Number(j.duration_sec)) + 's');
-        const probeLine = pp.length ? `<div class="probe-line">${pp.join(' · ')}</div>` : '';
+        if (j.duration_sec != null) pp.push(Math.round(Number(j.duration_sec)) + 's');
+        if (j.tagger) pp.push(esc(j.tagger));
+        const probe = pp.length ? `<div class="probe-line">${pp.join(' \u00b7 ')}</div>` : '';
+
+        const chars = (j.character_tag_string || '').split(',').map(s => s.trim()).filter(Boolean);
+        const charHtml = chars.length ? chars.map(c => `<span class="char-tag">${esc(c)}</span>`).join('') : '';
+        const gens = (j.general_tag_string || '').split(',').map(s => s.trim()).filter(Boolean);
+        const genHtml = gens.length ? gens.slice(0, 8).map(g => `<span class="gen-tag">${esc(g)}</span>`).join('') + (gens.length > 8 ? `<span class="gen-tag">+${gens.length-8}</span>` : '') : '';
+        const tagCell = (charHtml || genHtml) ? `${charHtml}${charHtml && genHtml ? '<br>' : ''}${genHtml}` : '<span style="color:var(--dim)">—</span>';
+
+        const rating = j.dominant_rating;
+        const rHtml = rating ? `<span class="rating-tag ${ratingCls(rating)}">${esc(rating)}</span>` : '<span style="color:var(--dim)">—</span>';
+
         return `<tr>
           <td><span class="st st-${st}">${esc(j.status)}</span></td>
-          <td class="path-cell">${fmtPath(j.path)}${probeLine}</td>
+          <td class="path-cell">${fmtPath(j.path)}${probe}</td>
+          <td class="tag-cell">${tagCell}</td>
+          <td>${rHtml}</td>
           <td class="time-cell">${fmtTime(ts)}</td>
-          <td class="err-cell">${esc(j.error || '')}</td>
+          <td class="err-cell">${esc(j.error||'')}</td>
           <td class="actions-cell">${canRetry ? `<button class="btn warn" onclick="retryOne('${esc(j.id)}')">Retry</button>` : ''}</td>
         </tr>`;
       }).join('');
     }
-
-    const totalForFilter = filter === 'all' ? (stats?.total||0) :
+    const tot = filter === 'all' ? (stats?.total||0) :
       filter === 'pending' ? (stats?.pending||0) :
       filter === 'processing' ? (stats?.processing||0) :
       filter === 'done' ? (stats?.done||0) : (stats?.failed||0);
-    const maxPage = Math.max(0, Math.ceil(totalForFilter / perPage) - 1);
-    $('pager').innerHTML = totalForFilter > perPage ? `
+    const mp = Math.max(0, Math.ceil(tot / perPage) - 1);
+    $('pager').innerHTML = tot > perPage ? `
       <button class="btn" ${page<=0?'disabled':''} onclick="gotoPage(${page-1})">Prev</button>
-      <span class="info">${page+1} / ${maxPage+1}</span>
-      <button class="btn" ${page>=maxPage?'disabled':''} onclick="gotoPage(${page+1})">Next</button>
-    ` : '';
+      <span class="info">${page+1} / ${mp+1}</span>
+      <button class="btn" ${page>=mp?'disabled':''} onclick="gotoPage(${page+1})">Next</button>` : '';
   } catch {}
 }
-
 function gotoPage(p) { page = Math.max(0, p); loadJobs(); }
-
 async function retryOne(id) {
-  try {
-    await fetch('/api/v1/retry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    toast('Job re-queued');
-    refresh();
-  } catch (e) { toast('Error: ' + e.message, true); }
+  try { await fetch('/api/v1/retry', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) }); toast('Re-queued'); refresh(); } catch(e) { toast(e.message, true); }
 }
-
 $('retryAllBtn').onclick = async () => {
-  try {
-    const r = await fetch('/api/v1/retry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'all' }) });
-    const j = await r.json();
-    toast(`Re-queued ${j.retried} failed job(s)`);
-    refresh();
-  } catch (e) { toast('Error: ' + e.message, true); }
+  try { const j = await fetch('/api/v1/retry', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:'all'})}).then(r=>r.json()); toast(`Re-queued ${j.retried}`); refresh(); } catch(e){toast(e.message,true);}
 };
-
 $('purgeBtn').onclick = async () => {
-  if (!confirm('Delete all completed (done) jobs from the database?')) return;
-  try {
-    const r = await fetch('/api/v1/purge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'done' }) });
-    const j = await r.json();
-    toast(`Purged ${j.purged} done job(s)`);
-    refresh();
-  } catch (e) { toast('Error: ' + e.message, true); }
+  if (!confirm('Delete all done jobs?')) return;
+  try { const j = await fetch('/api/v1/purge', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'done'})}).then(r=>r.json()); toast(`Purged ${j.purged}`); refresh(); } catch(e){toast(e.message,true);}
 };
-
 $('scanBtn').onclick = async () => {
-  const root = $('root').value.trim();
-  const msg = $('scanMsg');
+  const root = $('root').value.trim(), msg = $('scanMsg');
   if (!root) { msg.textContent = 'Enter a path.'; return; }
-  $('scanBtn').disabled = true;
-  msg.textContent = 'Scanning\u2026';
-  try {
-    const r = await fetch('/api/v1/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ root }) });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error || r.statusText);
-    msg.textContent = `Added ${j.added} new job(s), ${j.skipped} already queued.`;
-    toast(`Scan complete: +${j.added}`);
-    refresh();
-  } catch (e) {
-    msg.textContent = 'Error: ' + e.message;
-    toast(e.message, true);
-  } finally { $('scanBtn').disabled = false; }
+  $('scanBtn').disabled = true; msg.textContent = 'Scanning\u2026';
+  try { const j = await fetch('/api/v1/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({root})}).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error||r.statusText); return d; });
+    msg.textContent = `+${j.added} new, ${j.skipped} skipped.`; toast(`Scan: +${j.added}`); refresh();
+  } catch(e) { msg.textContent = 'Error: '+e.message; toast(e.message, true); } finally { $('scanBtn').disabled = false; }
 };
-$('root').addEventListener('keydown', e => { if (e.key === 'Enter') $('scanBtn').click(); });
+$('root').addEventListener('keydown', e => { if (e.key==='Enter') $('scanBtn').click(); });
 
 let toastTimer;
-function toast(msg, isErr) {
-  const el = $('toast');
-  el.textContent = msg;
-  el.className = 'toast show' + (isErr ? ' error' : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.className = 'toast', 3000);
-}
+function toast(msg, isErr) { const el=$('toast'); el.textContent=msg; el.className='toast show'+(isErr?' error':''); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.className='toast',3000); }
 
 function renderBuckets(agg) {
-  const el = $('ffprobeAgg');
-  if (!agg || !agg.done_jobs) {
-    el.innerHTML = '<div>No finished jobs yet.</div>';
-    return;
+  const el = $('ffprobeAgg'), el2 = $('ratingAgg'), el3 = $('charAgg');
+  if (!agg || !agg.done_jobs) { el.innerHTML = el2.innerHTML = el3.innerHTML = '<div>No data yet.</div>'; return; }
+  const avg = agg.avg_duration_sec != null ? `Avg: <b>${(+agg.avg_duration_sec).toFixed(1)}s</b> · ` : '';
+  const bk = (rows, max) => (rows||[]).slice(0,max||12).map(r=>`<div><span>${esc(r.key)}</span><span>${r.count} (${(+r.pct_of_done_jobs).toFixed(1)}%)</span></div>`).join('');
+  el.innerHTML = `<div style="margin-bottom:.3rem">${avg}<b>${agg.done_jobs}</b> done</div>` + bk(agg.video_codec) + bk(agg.audio_codec) + bk(agg.container);
+
+  // Ratings
+  if (agg.dominant_rating && agg.dominant_rating.length) {
+    el2.innerHTML = agg.dominant_rating.map(r => `<div><span><span class="rating-tag ${ratingCls(r.key)}" style="font-size:.62rem">${esc(r.key)}</span></span><span>${r.count} (${(+r.pct_of_done_jobs).toFixed(1)}%)</span></div>`).join('');
+  } else { el2.innerHTML = '<div>No ratings yet.</div>'; }
+
+  // Characters
+  if (agg.characters && agg.characters.length) {
+    el3.innerHTML = agg.characters.slice(0, 30).map(r => `<div><span><span class="char-tag" style="font-size:.62rem">${esc(r.key)}</span></span><span>${r.count} (${(+r.pct_of_done_jobs).toFixed(1)}%)</span></div>`).join('');
+  } else { el3.innerHTML = '<div>No character tags yet.</div>'; }
+
+  // Update badge
+  if (agg.taggers && agg.taggers.length) {
+    const top = agg.taggers[0].key;
+    $('pipelineBadge').textContent = top.startsWith('wd14') ? 'WD14' : top;
   }
-  const avg = agg.avg_duration_sec != null ? `<div style="margin-bottom:.5rem;color:var(--text)">Avg duration: <b>${(+agg.avg_duration_sec).toFixed(1)}s</b> · <b>${agg.done_jobs}</b> done job(s)</div>` : `<div style="margin-bottom:.5rem">Done jobs: <b>${agg.done_jobs}</b></div>`;
-  const block = (title, rows) => {
-    if (!rows || !rows.length) return '';
-    const lines = rows.slice(0, 12).map(r => `<div><span>${esc(r.key)}</span><span>${r.count} (${(+r.pct_of_done_jobs).toFixed(1)}%)</span></div>`).join('');
-    return `<div style="margin-top:.4rem"><div style="font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem">${title}</div>${lines}</div>`;
-  };
-  el.innerHTML = avg + block('Video codec', agg.video_codec) + block('Audio codec', agg.audio_codec) + block('Container', agg.container);
 }
 
 function renderTagFreq(data) {
-  const tb = $('tagFreqBody');
-  const rows = (data && data.tags) || [];
-  if (!rows.length) {
-    tb.innerHTML = `<tr><td colspan="4" class="empty" style="padding:1rem">No tokens indexed yet. Finish jobs or run <b>Rebuild index</b>.</td></tr>`;
-    return;
-  }
-  const dj = data.done_jobs || 0;
+  const tb = $('tagFreqBody'), rows = (data && data.tags) || [];
+  if (!rows.length) { tb.innerHTML = `<tr><td colspan="4" class="empty" style="padding:1rem">No tokens yet.</td></tr>`; return; }
   tb.innerHTML = rows.slice(0, 80).map(r => `<tr>
-    <td class="path-cell" style="max-width:320px">${esc(r.tag)}</td>
-    <td>${r.count}</td>
-    <td>${(+r.pct_of_done_jobs).toFixed(1)}%</td>
-    <td class="err-cell" style="color:var(--muted);max-width:200px">${esc(r.note || '')}</td>
+    <td class="path-cell" style="max-width:280px">${esc(r.tag)}</td>
+    <td>${r.count}</td><td>${(+r.pct_of_done_jobs).toFixed(1)}%</td>
+    <td style="color:var(--muted);font-size:.65rem;max-width:160px">${esc(r.note||'')}</td>
   </tr>`).join('');
 }
 
 async function loadAnalytics() {
   try {
-    const prefix = ($('tagPrefix').value || '').trim();
-    const q = new URLSearchParams({ limit: '200', min_count: '1' });
+    const prefix = ($('tagPrefix').value||'').trim();
+    const q = new URLSearchParams({limit:'200',min_count:'1'});
     if (prefix) q.set('prefix', prefix);
     const [a, t] = await Promise.all([
-      fetch('/api/v1/analytics/ffprobe').then(r => r.json()),
-      fetch('/api/v1/analytics/tags?' + q).then(r => r.json())
+      fetch('/api/v1/analytics/ffprobe').then(r=>r.json()),
+      fetch('/api/v1/analytics/tags?'+q).then(r=>r.json())
     ]);
-    renderBuckets(a);
-    renderTagFreq(t);
+    renderBuckets(a); renderTagFreq(t);
   } catch {}
 }
-
 $('reloadAnalyticsBtn').onclick = () => loadAnalytics();
-$('tagPrefix').addEventListener('keydown', e => { if (e.key === 'Enter') loadAnalytics(); });
-
+$('tagPrefix').addEventListener('keydown', e => { if (e.key==='Enter') loadAnalytics(); });
 $('rebuildTagsBtn').onclick = async () => {
-  if (!confirm('Rebuild tag index from stored job JSON?')) return;
-  try {
-    const r = await fetch('/api/v1/analytics/rebuild-tags', { method: 'POST' });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error || r.statusText);
-    toast(`Indexed ${j.tags_written} token(s) across ${j.jobs_updated} job(s)`);
-    loadAnalytics();
-  } catch (e) { toast(e.message, true); }
+  if (!confirm('Rebuild tag index from stored JSON?')) return;
+  try { const j = await fetch('/api/v1/analytics/rebuild-tags',{method:'POST'}).then(async r=>{const d=await r.json(); if(!r.ok) throw new Error(d.error||r.statusText); return d;});
+    toast(`Indexed ${j.tags_written} across ${j.jobs_updated} jobs`); loadAnalytics();
+  } catch(e){toast(e.message,true);}
 };
 
 async function refresh() {
-  const dot = $('refresh-dot');
-  dot.classList.add('active');
+  const dot = $('refresh-dot'); dot.classList.add('active');
   await Promise.all([loadStats(), loadJobs(), loadAnalytics()]);
   setTimeout(() => dot.classList.remove('active'), 300);
 }
-
-initFilters();
-refresh();
-setInterval(refresh, 2000);
+initFilters(); refresh(); setInterval(refresh, 2000);
 </script>
 </body>
 </html>

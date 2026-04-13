@@ -74,12 +74,17 @@ func (p *Pool) loop(ctx context.Context, id int) {
 		if res.Meta != nil {
 			m := res.Meta
 			dm = &store.DoneMeta{
-				DurationSec: m.DurationSec,
-				VideoCodec:  m.VideoCodec,
-				AudioCodec:  m.AudioCodec,
-				Width:       m.Width,
-				Height:      m.Height,
-				Container:   m.Container,
+				DurationSec:        m.DurationSec,
+				VideoCodec:         m.VideoCodec,
+				AudioCodec:         m.AudioCodec,
+				Width:              m.Width,
+				Height:             m.Height,
+				Container:          m.Container,
+				Tagger:             m.Tagger,
+				DominantRating:     m.DominantRating,
+				GeneralTagString:   m.GeneralTagString,
+				CharacterTagString: m.CharacterTagString,
+				FramesSampled:      m.FramesSampled,
 			}
 		}
 		if err := p.Store.MarkDone(ctx, job.ID, string(res.Raw), res.FrequencyTokens, dm); err != nil {

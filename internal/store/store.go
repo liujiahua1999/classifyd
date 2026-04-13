@@ -32,13 +32,18 @@ type Job struct {
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 	Error      string    `json:"error,omitempty"`
 	ResultJSON string    `json:"result_json,omitempty"`
-	// Probe fields (done jobs, ffprobe) for fast aggregates / UI without parsing full JSON.
-	DurationSec *float64 `json:"duration_sec,omitempty"`
-	VideoCodec  string    `json:"video_codec,omitempty"`
-	AudioCodec  string    `json:"audio_codec,omitempty"`
-	Width       *int      `json:"width,omitempty"`
-	Height      *int      `json:"height,omitempty"`
-	Container   string    `json:"container_fmt,omitempty"`
+	// Indexed columns for fast aggregates / UI.
+	DurationSec        *float64 `json:"duration_sec,omitempty"`
+	VideoCodec         string   `json:"video_codec,omitempty"`
+	AudioCodec         string   `json:"audio_codec,omitempty"`
+	Width              *int     `json:"width,omitempty"`
+	Height             *int     `json:"height,omitempty"`
+	Container          string   `json:"container_fmt,omitempty"`
+	Tagger             string   `json:"tagger,omitempty"`
+	DominantRating     string   `json:"dominant_rating,omitempty"`
+	GeneralTagString   string   `json:"general_tag_string,omitempty"`
+	CharacterTagString string   `json:"character_tag_string,omitempty"`
+	FramesSampled      int      `json:"frames_sampled,omitempty"`
 }
 
 type Stats struct {
@@ -49,14 +54,19 @@ type Stats struct {
 	Failed     int64 `json:"failed"`
 }
 
-// DoneMeta is optional structured probe data stored on the job row for aggregates.
+// DoneMeta is optional structured data stored on the job row for aggregates.
 type DoneMeta struct {
-	DurationSec *float64
-	VideoCodec  string
-	AudioCodec  string
-	Width       *int
-	Height      *int
-	Container   string
+	DurationSec        *float64
+	VideoCodec         string
+	AudioCodec         string
+	Width              *int
+	Height             *int
+	Container          string
+	Tagger             string
+	DominantRating     string
+	GeneralTagString   string
+	CharacterTagString string
+	FramesSampled      int
 }
 
 type Store struct {
@@ -120,6 +130,11 @@ func (s *Store) migrate() error {
 		`ALTER TABLE jobs ADD COLUMN width INTEGER`,
 		`ALTER TABLE jobs ADD COLUMN height INTEGER`,
 		`ALTER TABLE jobs ADD COLUMN container_fmt TEXT`,
+		`ALTER TABLE jobs ADD COLUMN tagger TEXT`,
+		`ALTER TABLE jobs ADD COLUMN dominant_rating TEXT`,
+		`ALTER TABLE jobs ADD COLUMN general_tag_string TEXT`,
+		`ALTER TABLE jobs ADD COLUMN character_tag_string TEXT`,
+		`ALTER TABLE jobs ADD COLUMN frames_sampled INTEGER`,
 	}
 	for _, q := range alters {
 		if _, err := s.db.Exec(q); err != nil {
@@ -194,16 +209,16 @@ func (s *Store) ClaimNext(ctx context.Context) (*Job, error) {
 	var j Job
 	var created, started, finished sql.NullInt64
 	var errMsg, res sql.NullString
-	var dur sql.NullFloat64
-	var vc, ac, cf sql.NullString
-	var wi, he sql.NullInt64
+	var sc jobScanCols
 	err = tx.QueryRowContext(ctx,
 		`SELECT id, path, status, created_at, started_at, finished_at, err, result_json,
-			duration_sec, video_codec, audio_codec, width, height, container_fmt
+			duration_sec, video_codec, audio_codec, width, height, container_fmt,
+			tagger, dominant_rating, general_tag_string, character_tag_string, frames_sampled
 		 FROM jobs WHERE status = ? ORDER BY created_at ASC LIMIT 1`,
 		string(StatusPending),
 	).Scan(&j.ID, &j.Path, &j.Status, &created, &started, &finished, &errMsg, &res,
-		&dur, &vc, &ac, &wi, &he, &cf)
+		&sc.dur, &sc.vc, &sc.ac, &sc.wi, &sc.he, &sc.cf,
+		&sc.tagger, &sc.rating, &sc.genTags, &sc.charTags, &sc.frames)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -216,7 +231,7 @@ func (s *Store) ClaimNext(ctx context.Context) (*Job, error) {
 	if res.Valid {
 		j.ResultJSON = res.String
 	}
-	applyProbeScan(&j, dur, vc, ac, wi, he, cf)
+	sc.apply(&j)
 	j.CreatedAt = time.Unix(created.Int64, 0)
 	if started.Valid {
 		t := time.Unix(started.Int64, 0)
@@ -274,6 +289,8 @@ func (s *Store) MarkDone(ctx context.Context, id string, resultJSON string, tags
 	}
 
 	var dur, vc, ac, cont, w, h interface{}
+	var tagger, rating, genTS, charTS interface{}
+	var framesSampled interface{}
 	if meta != nil {
 		if meta.DurationSec != nil {
 			dur = *meta.DurationSec
@@ -293,13 +310,30 @@ func (s *Store) MarkDone(ctx context.Context, id string, resultJSON string, tags
 		if meta.Height != nil {
 			h = *meta.Height
 		}
+		if strings.TrimSpace(meta.Tagger) != "" {
+			tagger = meta.Tagger
+		}
+		if strings.TrimSpace(meta.DominantRating) != "" {
+			rating = meta.DominantRating
+		}
+		if meta.GeneralTagString != "" {
+			genTS = meta.GeneralTagString
+		}
+		if meta.CharacterTagString != "" {
+			charTS = meta.CharacterTagString
+		}
+		if meta.FramesSampled > 0 {
+			framesSampled = meta.FramesSampled
+		}
 	}
 	_, err = tx.ExecContext(ctx,
 		`UPDATE jobs SET status = ?, finished_at = ?, result_json = ?, err = '',
-			duration_sec = ?, video_codec = ?, audio_codec = ?, width = ?, height = ?, container_fmt = ?
+			duration_sec = ?, video_codec = ?, audio_codec = ?, width = ?, height = ?, container_fmt = ?,
+			tagger = ?, dominant_rating = ?, general_tag_string = ?, character_tag_string = ?, frames_sampled = ?
 		 WHERE id = ?`,
 		string(StatusDone), now, resultJSON,
 		dur, vc, ac, w, h, cont,
+		tagger, rating, genTS, charTS, framesSampled,
 		id,
 	)
 	if err != nil {
@@ -420,13 +454,15 @@ func (s *Store) ListJobs(ctx context.Context, status string, limit, offset int) 
 	if status != "" && status != "all" {
 		rows, err = s.db.QueryContext(ctx,
 			`SELECT id, path, status, created_at, started_at, finished_at, err, result_json,
-				duration_sec, video_codec, audio_codec, width, height, container_fmt
+				duration_sec, video_codec, audio_codec, width, height, container_fmt,
+			tagger, dominant_rating, general_tag_string, character_tag_string, frames_sampled
 			 FROM jobs WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
 			status, limit, offset)
 	} else {
 		rows, err = s.db.QueryContext(ctx,
 			`SELECT id, path, status, created_at, started_at, finished_at, err, result_json,
-				duration_sec, video_codec, audio_codec, width, height, container_fmt
+				duration_sec, video_codec, audio_codec, width, height, container_fmt,
+			tagger, dominant_rating, general_tag_string, character_tag_string, frames_sampled
 			 FROM jobs ORDER BY created_at DESC LIMIT ? OFFSET ?`,
 			limit, offset)
 	}
@@ -443,11 +479,10 @@ func scanJobs(rows *sql.Rows) ([]Job, error) {
 		var j Job
 		var created, started, finished sql.NullInt64
 		var errMsg, res sql.NullString
-		var dur sql.NullFloat64
-		var vc, ac, cf sql.NullString
-		var wi, he sql.NullInt64
+		var sc jobScanCols
 		if err := rows.Scan(&j.ID, &j.Path, &j.Status, &created, &started, &finished, &errMsg, &res,
-			&dur, &vc, &ac, &wi, &he, &cf); err != nil {
+			&sc.dur, &sc.vc, &sc.ac, &sc.wi, &sc.he, &sc.cf,
+			&sc.tagger, &sc.rating, &sc.genTags, &sc.charTags, &sc.frames); err != nil {
 			return nil, err
 		}
 		if errMsg.Valid {
@@ -456,7 +491,7 @@ func scanJobs(rows *sql.Rows) ([]Job, error) {
 		if res.Valid {
 			j.ResultJSON = res.String
 		}
-		applyProbeScan(&j, dur, vc, ac, wi, he, cf)
+		sc.apply(&j)
 		j.CreatedAt = time.Unix(created.Int64, 0)
 		if started.Valid {
 			t := time.Unix(started.Int64, 0)
@@ -474,16 +509,16 @@ func scanJobs(rows *sql.Rows) ([]Job, error) {
 func (s *Store) GetJob(ctx context.Context, id string) (*Job, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, path, status, created_at, started_at, finished_at, err, result_json,
-			duration_sec, video_codec, audio_codec, width, height, container_fmt
+			duration_sec, video_codec, audio_codec, width, height, container_fmt,
+			tagger, dominant_rating, general_tag_string, character_tag_string, frames_sampled
 		 FROM jobs WHERE id = ?`, id)
 	var j Job
 	var created, started, finished sql.NullInt64
 	var errMsg, res sql.NullString
-	var dur sql.NullFloat64
-	var vc, ac, cf sql.NullString
-	var wi, he sql.NullInt64
+	var sc jobScanCols
 	err := row.Scan(&j.ID, &j.Path, &j.Status, &created, &started, &finished, &errMsg, &res,
-		&dur, &vc, &ac, &wi, &he, &cf)
+		&sc.dur, &sc.vc, &sc.ac, &sc.wi, &sc.he, &sc.cf,
+		&sc.tagger, &sc.rating, &sc.genTags, &sc.charTags, &sc.frames)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -496,7 +531,7 @@ func (s *Store) GetJob(ctx context.Context, id string) (*Job, error) {
 	if res.Valid {
 		j.ResultJSON = res.String
 	}
-	applyProbeScan(&j, dur, vc, ac, wi, he, cf)
+	sc.apply(&j)
 	j.CreatedAt = time.Unix(created.Int64, 0)
 	if started.Valid {
 		t := time.Unix(started.Int64, 0)
@@ -625,31 +660,59 @@ func (s *Store) ScanRoot(root string) (added int, skipped int, err error) {
 	return added, skipped, nil
 }
 
-func applyProbeScan(j *Job, dur sql.NullFloat64, vc, ac sql.NullString, wi, he sql.NullInt64, cf sql.NullString) {
+type jobScanCols struct {
+	dur      sql.NullFloat64
+	vc, ac   sql.NullString
+	wi, he   sql.NullInt64
+	cf       sql.NullString
+	tagger   sql.NullString
+	rating   sql.NullString
+	genTags  sql.NullString
+	charTags sql.NullString
+	frames   sql.NullInt64
+}
+
+func (sc *jobScanCols) apply(j *Job) {
 	j.DurationSec = nil
-	j.VideoCodec = ""
-	j.AudioCodec = ""
-	j.Container = ""
+	j.VideoCodec, j.AudioCodec, j.Container = "", "", ""
 	j.Width, j.Height = nil, nil
-	if dur.Valid {
-		x := dur.Float64
+	j.Tagger, j.DominantRating = "", ""
+	j.GeneralTagString, j.CharacterTagString = "", ""
+	j.FramesSampled = 0
+	if sc.dur.Valid {
+		x := sc.dur.Float64
 		j.DurationSec = &x
 	}
-	if vc.Valid {
-		j.VideoCodec = vc.String
+	if sc.vc.Valid {
+		j.VideoCodec = sc.vc.String
 	}
-	if ac.Valid {
-		j.AudioCodec = ac.String
+	if sc.ac.Valid {
+		j.AudioCodec = sc.ac.String
 	}
-	if wi.Valid {
-		w := int(wi.Int64)
+	if sc.wi.Valid {
+		w := int(sc.wi.Int64)
 		j.Width = &w
 	}
-	if he.Valid {
-		h := int(he.Int64)
+	if sc.he.Valid {
+		h := int(sc.he.Int64)
 		j.Height = &h
 	}
-	if cf.Valid {
-		j.Container = cf.String
+	if sc.cf.Valid {
+		j.Container = sc.cf.String
+	}
+	if sc.tagger.Valid {
+		j.Tagger = sc.tagger.String
+	}
+	if sc.rating.Valid {
+		j.DominantRating = sc.rating.String
+	}
+	if sc.genTags.Valid {
+		j.GeneralTagString = sc.genTags.String
+	}
+	if sc.charTags.Valid {
+		j.CharacterTagString = sc.charTags.String
+	}
+	if sc.frames.Valid {
+		j.FramesSampled = int(sc.frames.Int64)
 	}
 }

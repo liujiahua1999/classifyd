@@ -1,15 +1,18 @@
 # classifyd
 
-Tdarr-style **Go** daemon: SQLite job queue, worker pool, REST API, embedded web UI.
+Tdarr-style **Go** daemon for video tagging: SQLite job queue, worker pool, REST API, embedded web UI.
 
-Each job runs **ffprobe** on the video path and stores JSON with:
+## Tagging Pipeline
 
-- `video_stats` — duration, codecs, resolution, fps, container
-- `metadata_tags` — flattened `format` / `video` / `audio` stream tags from ffprobe
-- `frequency_tokens` — deduplicated strings used for **cross-library frequency** (which values are common vs rare)
-- `probe` — raw ffprobe JSON
+**Default:** runs `ffprobe` only (stores codec/container/duration metadata).
 
-Replace or extend `internal/pipeline` to add ONNX or another tagger; `frequency_tokens` can be extended with ML tags the same way.
+**WD14 mode:** set `PYTHON_SCRIPT` to call `anime_video_classifier.py` as a subprocess. Each video is tagged with the **WD14 Danbooru tagger** (ONNX) — general tags, character tags, and rating — with character identification as the primary goal:
+
+1. WD14 tags N sampled frames → aggregate max scores across frames
+2. If no character tags survive the score cutoff → match `character_names.txt` against the filename
+3. If still empty → optional LLM fallback (OpenAI-compatible API)
+
+The Go service stores the full JSON result plus indexed columns (`character_tag_string`, `general_tag_string`, `dominant_rating`, etc.) for fast SQL lookups, and `job_tags` for cross-library frequency analysis.
 
 ## Build
 
@@ -17,18 +20,21 @@ Replace or extend `internal/pipeline` to add ONNX or another tagger; `frequency_
 go build -o classifyd ./cmd/classifyd
 ```
 
-Needs **ffprobe** on `PATH` (install **ffmpeg**).
+Needs **ffprobe** on `PATH`. For WD14 mode, also needs Python 3.10+ with `dghs-imgutils` and `onnxruntime`.
 
 ## Run
 
 ```bash
-export CLASSIFYD_LISTEN=:8080
-export CLASSIFYD_DATA=./data
+# ffprobe-only (default)
+./classifyd
+
+# WD14 mode
+export PYTHON_SCRIPT=./anime_video_classifier.py
 export CLASSIFYD_WORKERS=2
 ./classifyd
 ```
 
-Open **http://127.0.0.1:8080/** — dashboard with progress, job list (ffprobe summary per row), **tag frequency** and **codec/container** analytics.
+Open **http://127.0.0.1:8080/** — character-focused dashboard with tag analytics, rating breakdown, progress, and job management.
 
 ### Environment
 
@@ -38,25 +44,30 @@ Open **http://127.0.0.1:8080/** — dashboard with progress, job list (ffprobe s
 | `CLASSIFYD_DATA` | `./data` | SQLite directory |
 | `CLASSIFYD_WORKERS` | `1` | Concurrent workers |
 | `FFPROBE_BIN` | `ffprobe` | ffprobe binary |
+| `PYTHON_BIN` | `python3` | Python interpreter |
+| `PYTHON_SCRIPT` | *(empty)* | Path to `anime_video_classifier.py` (enables WD14) |
+| `PYTHON_EXTRA_ARGS` | *(empty)* | Extra flags forwarded to the script (e.g. `--character-llm --frames 16`) |
+
+All Python-side env vars (`CHARACTER_LLM`, `OPENAI_API_KEY`, `WD14_MODEL`, etc.) are inherited by the subprocess.
 
 ## API
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | `{"ok":true}` |
-| GET | `/api/v1/stats` | Queue totals (pending/processing/done/failed/total) |
-| GET | `/api/v1/jobs?status=&limit=&offset=` | List jobs with optional status filter + pagination |
-| GET | `/api/v1/jobs/{id}` | Single job detail |
+| GET | `/api/v1/stats` | Queue totals |
+| GET | `/api/v1/jobs?status=&limit=&offset=` | Jobs (includes `character_tag_string`, `dominant_rating`, etc.) |
+| GET | `/api/v1/jobs/{id}` | Single job with full `result_json` |
+| GET | `/api/v1/jobs/{id}/tags` | Frequency tokens for one job |
 | DELETE | `/api/v1/jobs/{id}` | Delete a job |
-| POST | `/api/v1/scan` | `{"root":"/path"}` — scan dir, enqueue videos |
-| GET | `/api/v1/library/roots` | List scanned library roots |
-| DELETE | `/api/v1/library/roots` | `{"path":"/path"}` — remove a root |
-| POST | `/api/v1/retry` | `{"id":"<uuid>"}` or `{"id":"all"}` — re-queue failed job(s) |
-| POST | `/api/v1/purge` | `{"status":"done"}` or `{"status":"failed"}` — bulk delete |
-| GET | `/api/v1/analytics/ffprobe` | Histograms: video/audio codec, container, avg duration (finished jobs) |
-| GET | `/api/v1/analytics/tags?limit=&min_count=&prefix=` | Token frequency + `% of finished jobs` + heuristic notes |
-| GET | `/api/v1/jobs/{id}/tags` | `frequency_tokens` stored for that job |
-| POST | `/api/v1/analytics/rebuild-tags` | Rebuild `job_tags` from `result_json` (after upgrade / repair) |
+| POST | `/api/v1/scan` | `{"root":"/path"}` — enqueue videos |
+| GET | `/api/v1/library/roots` | Scanned roots |
+| DELETE | `/api/v1/library/roots` | Remove a root |
+| POST | `/api/v1/retry` | `{"id":"<uuid>"}` or `{"id":"all"}` |
+| POST | `/api/v1/purge` | `{"status":"done\|failed"}` |
+| GET | `/api/v1/analytics/ffprobe` | Codec/container/rating/character histograms |
+| GET | `/api/v1/analytics/tags?prefix=&limit=&min_count=` | Tag frequency + notes |
+| POST | `/api/v1/analytics/rebuild-tags` | Rebuild tag index from JSON |
 
 ## Docker
 

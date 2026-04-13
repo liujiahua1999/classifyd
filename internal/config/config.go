@@ -6,12 +6,15 @@ import (
 	"strings"
 )
 
-// Config holds daemon settings.
 type Config struct {
 	ListenAddr        string
 	DataDir           string
 	WorkerConcurrency int
 	FFprobeBin        string
+	// WD14 (Python subprocess) settings. If PythonScript is set, the WD14 classifier is used.
+	PythonBin       string
+	PythonScript    string
+	PythonExtraArgs []string
 }
 
 func getenv(key, def string) string {
@@ -34,10 +37,20 @@ func getenvInt(key string, def int) int {
 }
 
 func Load() Config {
-	return Config{
+	c := Config{
 		ListenAddr:        getenv("CLASSIFYD_LISTEN", ":8080"),
 		DataDir:           getenv("CLASSIFYD_DATA", "./data"),
 		WorkerConcurrency: getenvInt("CLASSIFYD_WORKERS", 1),
 		FFprobeBin:        getenv("FFPROBE_BIN", "ffprobe"),
+		PythonBin:         getenv("PYTHON_BIN", "python3"),
+		PythonScript:      getenv("PYTHON_SCRIPT", ""),
 	}
+	if extra := strings.TrimSpace(os.Getenv("PYTHON_EXTRA_ARGS")); extra != "" {
+		c.PythonExtraArgs = strings.Fields(extra)
+	}
+	return c
+}
+
+func (c *Config) UseWD14() bool {
+	return strings.TrimSpace(c.PythonScript) != ""
 }

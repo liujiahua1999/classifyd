@@ -25,11 +25,14 @@ type Bucket struct {
 
 // FFProbeAggregate summarizes stored probe columns for finished jobs.
 type FFProbeAggregate struct {
-	DoneJobs    int64    `json:"done_jobs"`
-	VideoCodec  []Bucket `json:"video_codec"`
-	AudioCodec  []Bucket `json:"audio_codec"`
-	Container   []Bucket `json:"container"`
-	AvgDuration *float64 `json:"avg_duration_sec,omitempty"`
+	DoneJobs       int64    `json:"done_jobs"`
+	VideoCodec     []Bucket `json:"video_codec"`
+	AudioCodec     []Bucket `json:"audio_codec"`
+	Container      []Bucket `json:"container"`
+	AvgDuration    *float64 `json:"avg_duration_sec,omitempty"`
+	DominantRating []Bucket `json:"dominant_rating"`
+	Characters     []Bucket `json:"characters"`
+	Taggers        []Bucket `json:"taggers"`
 }
 
 // CountDoneJobs returns how many jobs are in status done.
@@ -132,6 +135,10 @@ func (s *Store) FFProbeAggregates(ctx context.Context) (*FFProbeAggregate, error
 			q = `SELECT audio_codec, COUNT(*) FROM jobs WHERE status = ? AND audio_codec IS NOT NULL AND TRIM(audio_codec) != '' GROUP BY audio_codec ORDER BY COUNT(*) DESC LIMIT 50`
 		case "container_fmt":
 			q = `SELECT container_fmt, COUNT(*) FROM jobs WHERE status = ? AND container_fmt IS NOT NULL AND TRIM(container_fmt) != '' GROUP BY container_fmt ORDER BY COUNT(*) DESC LIMIT 50`
+		case "dominant_rating":
+			q = `SELECT dominant_rating, COUNT(*) FROM jobs WHERE status = ? AND dominant_rating IS NOT NULL AND TRIM(dominant_rating) != '' GROUP BY dominant_rating ORDER BY COUNT(*) DESC LIMIT 50`
+		case "tagger":
+			q = `SELECT tagger, COUNT(*) FROM jobs WHERE status = ? AND tagger IS NOT NULL AND TRIM(tagger) != '' GROUP BY tagger ORDER BY COUNT(*) DESC LIMIT 50`
 		default:
 			return nil, fmt.Errorf("unknown column %q", col)
 		}
@@ -171,7 +178,49 @@ func (s *Store) FFProbeAggregates(ctx context.Context) (*FFProbeAggregate, error
 	out.VideoCodec = vc
 	out.AudioCodec = ac
 	out.Container = cf
+
+	dr, err := buckets("dominant_rating")
+	if err != nil {
+		return nil, err
+	}
+	out.DominantRating = dr
+
+	tg, err := buckets("tagger")
+	if err != nil {
+		return nil, err
+	}
+	out.Taggers = tg
+
+	chars, err := s.characterFrequency(ctx, denom)
+	if err != nil {
+		return nil, err
+	}
+	out.Characters = chars
 	return out, nil
+}
+
+func (s *Store) characterFrequency(ctx context.Context, denom float64) ([]Bucket, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT tag, COUNT(*) AS c FROM job_tags WHERE tag LIKE 'character:%' GROUP BY tag ORDER BY c DESC LIMIT 100`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Bucket
+	for rows.Next() {
+		var tag string
+		var c int64
+		if err := rows.Scan(&tag, &c); err != nil {
+			return nil, err
+		}
+		name := strings.TrimPrefix(tag, "character:")
+		idx := strings.LastIndex(name, ":")
+		if idx > 0 {
+			name = name[:idx]
+		}
+		out = append(out, Bucket{Key: name, Count: c, Pct: (float64(c) / denom) * 100})
+	}
+	return out, rows.Err()
 }
 
 // ListJobTags returns frequency tokens stored for a job.
