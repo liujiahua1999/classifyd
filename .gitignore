@@ -1,7 +1,8 @@
 .env
 .DS_Store
 data/
-classifyd
+# Only the built binary at repo root (not cmd/classifyd/)
+/classifyd
 dist/
 api
 character_names.txt
