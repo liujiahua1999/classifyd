@@ -2,9 +2,14 @@
 # Create a virtual folder tree of symlinks, one subfolder per extracted character tag.
 # Reads done jobs from classifyd SQLite (job_tags: character:*) and optional character_tag_string.
 #
-# Usage:
-#   ./scripts/link_by_character.sh -o /path/to/emby-library/by-character
-#   CLASSIFYD_DATA=/var/lib/classifyd ./scripts/link_by_character.sh -o /srv/media/emby-chars
+# Typical invocation (three paths):
+#   ./scripts/link_by_character.sh \
+#     -b /path/to/classifyd.db \
+#     -m /original/emby/library/media \
+#     -o /custom/new/linked-folder
+#
+# Shorter (DB defaults to \$CLASSIFYD_DATA/classifyd.db):
+#   CLASSIFYD_DATA=/var/lib/classifyd ./scripts/link_by_character.sh -o /srv/emby/by-character
 #
 # Ubuntu / SMB notes:
 #   - Prefer relative symlinks (default): works across layouts when both paths resolve on the client.
@@ -20,11 +25,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DATA_DIR="${CLASSIFYD_DATA:-${REPO_ROOT}/data}"
-OUT_ROOT=""
+DB_FILE="${CLASSIFYD_DB:-}"
+OUT_ROOT="${LINK_OUTPUT:-}"
+MEDIA_ROOT="${EMBY_MEDIA_ROOT:-}"
 DRY_RUN=0
 CLEAN=0
 ABSOLUTE=0
 UNCAT="${LINK_UNCATEGORIZED:-}"
+
+MEDIA_ROOT_CANON=""
 
 abs_dir() {
 	local p="$1"
@@ -35,27 +44,60 @@ abs_dir() {
 	(cd "$p" && pwd)
 }
 
+resolve_db_file() {
+	local f="$1"
+	if [[ "$f" != /* ]]; then
+		f="$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
+	fi
+	if [[ ! -f "$f" ]]; then
+		echo "error: database file not found: $f" >&2
+		exit 1
+	fi
+	printf '%s' "$f"
+}
+
+path_under_media_root() {
+	local f="$1"
+	local rf rr
+	if [[ -z "${MEDIA_ROOT_CANON:-}" ]]; then
+		return 0
+	fi
+	rr="$MEDIA_ROOT_CANON"
+	rf="$(realpath "$f" 2>/dev/null)" || rf="$f"
+	[[ "$rf" == "$rr" ]] || [[ "$rf" == "$rr"/* ]]
+}
+
 usage() {
-	sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
 	echo ""
-	echo "Options:"
-	echo "  -d DIR   classifyd data dir (default: \$CLASSIFYD_DATA or ./data under repo)"
-	echo "  -o DIR   output root for character subfolders (required)"
+	echo "Main paths (recommended explicit):"
+	echo "  -b FILE  classifyd.db location (\$CLASSIFYD_DB)"
+	echo "  -m DIR   original Emby/media library root — only link jobs whose stored path"
+	echo "           lies under this directory (\$EMBY_MEDIA_ROOT). Omit to include all jobs."
+	echo "  -o DIR   new folder for the symlink tree (\$LINK_OUTPUT). Required unless \$LINK_OUTPUT set."
+	echo ""
+	echo "Other:"
+	echo "  -d DIR   classifyd data dir if -b omitted (default: \$CLASSIFYD_DATA or repo/data)"
 	echo "  -n       dry run (print actions only)"
 	echo "  -c       remove existing symlinks under -o before linking (keeps dirs)"
 	echo "  -a       use absolute symlink targets (helps if relative fails on some SMB setups)"
 	echo "  -u NAME  folder for done jobs with no character (default: skip)"
 	echo ""
 	echo "Environment:"
-	echo "  CLASSIFYD_DATA   Path containing classifyd.db"
+	echo "  CLASSIFYD_DB      Explicit path to classifyd.db (same as -b)"
+	echo "  CLASSIFYD_DATA    Data directory used only when -b / CLASSIFYD_DB is unset"
+	echo "  EMBY_MEDIA_ROOT Same as -m"
+	echo "  LINK_OUTPUT     Same as -o"
 	echo "  LINK_UNCATEGORIZED  Same as -u"
 	exit "${1:-0}"
 }
 
-while getopts "d:o:ncau:h" opt; do
+while getopts "d:o:b:m:ncau:h" opt; do
 	case "$opt" in
 	d) DATA_DIR="$OPTARG" ;;
 	o) OUT_ROOT="$OPTARG" ;;
+	b) DB_FILE="$OPTARG" ;;
+	m) MEDIA_ROOT="$OPTARG" ;;
 	n) DRY_RUN=1 ;;
 	c) CLEAN=1 ;;
 	a) ABSOLUTE=1 ;;
@@ -66,19 +108,35 @@ while getopts "d:o:ncau:h" opt; do
 done
 
 if [[ -z "$OUT_ROOT" ]]; then
-	echo "error: -o OUTPUT_ROOT is required" >&2
+	echo "error: set linked folder with -o or LINK_OUTPUT" >&2
 	usage 1
 fi
 
-# Relative CLASSIFYD_DATA / -d is resolved from the current working directory.
-if [[ "$DATA_DIR" != /* ]]; then
-	DATA_DIR="$(cd "$(dirname "$DATA_DIR")" && pwd)/$(basename "$DATA_DIR")"
+if [[ -n "$DB_FILE" ]]; then
+	DB_PATH="$(resolve_db_file "$DB_FILE")"
+else
+	# Relative CLASSIFYD_DATA / -d is resolved from the current working directory.
+	if [[ "$DATA_DIR" != /* ]]; then
+		DATA_DIR="$(cd "$(dirname "$DATA_DIR")" && pwd)/$(basename "$DATA_DIR")"
+	fi
+	DATA_DIR="$(abs_dir "$DATA_DIR")"
+	DB_PATH="${DATA_DIR}/classifyd.db"
+	if [[ ! -f "$DB_PATH" ]]; then
+		echo "error: database not found: $DB_PATH (use -b / CLASSIFYD_DB for an explicit path)" >&2
+		exit 1
+	fi
 fi
-DATA_DIR="$(abs_dir "$DATA_DIR")"
-DB_PATH="${DATA_DIR}/classifyd.db"
-if [[ ! -f "$DB_PATH" ]]; then
-	echo "error: database not found: $DB_PATH" >&2
-	exit 1
+
+if [[ -n "$MEDIA_ROOT" ]]; then
+	if [[ ! -d "$MEDIA_ROOT" ]]; then
+		echo "error: -m / EMBY_MEDIA_ROOT must be an existing directory: $MEDIA_ROOT" >&2
+		exit 1
+	fi
+	if [[ "$MEDIA_ROOT" != /* ]]; then
+		MEDIA_ROOT="$(cd "$(dirname "$MEDIA_ROOT")" && pwd)/$(basename "$MEDIA_ROOT")"
+	fi
+	MEDIA_ROOT="$(abs_dir "$MEDIA_ROOT")"
+	MEDIA_ROOT_CANON="$(realpath "$MEDIA_ROOT" 2>/dev/null || echo "$MEDIA_ROOT")"
 fi
 
 command -v sqlite3 >/dev/null 2>&1 || {
@@ -209,6 +267,10 @@ process_row() {
 	fi
 	SEEN[$key]=1
 
+	if [[ -n "${MEDIA_ROOT_CANON:-}" ]] && ! path_under_media_root "$fpath"; then
+		return
+	fi
+
 	if [[ ! -f "$fpath" ]] && [[ ! -L "$fpath" ]]; then
 		echo "warn: missing file, skip: $fpath" >&2
 		return
@@ -267,4 +329,4 @@ WHERE status = 'done'
 	done < <(printf '%s\n' "${uncat_rows[@]:-}")
 fi
 
-echo "done: $LINKS symlink(s) under $(printf '%q' "$OUT_ROOT")"
+echo "done: $LINKS symlink(s) under $(printf '%q' "$OUT_ROOT") (db $(printf '%q' "$DB_PATH")${MEDIA_ROOT_CANON:+; only under $(printf '%q' "$MEDIA_ROOT_CANON")})"
